@@ -1,0 +1,61 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+"provider": {
+    "mimo": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Xiaomi MiMo",
+      "options": {
+        "baseURL": "https://token-plan-cn.xiaomimimo.com/v1"
+      },
+      "models": {
+        "mimo-v2.5-pro": {
+          "name": "MiMo-V2.5-Pro"
+        },
+        "mimo-v2": {
+          "name": "MiMo-V2"
+        }
+      }
+    },
+    "deepseek": {
+      "npm": "@ai-sdk/anthropic",
+      "name": "DeepSeek",
+      "options": {
+        "baseURL": "https://api.deepseek.com/anthropic",
+      },
+      "models": {
+        "deepseek-v4-flash": {
+          "name": "DeepSeek-V4-Flash",
+		  "limit": {
+			"context": 1048576,
+			"output": 262144
+		  },
+          "options": {
+			"thinking": {"type": "enabled",
+						"budgetTokens": 8192	
+					},
+            "reasoning_effort": "high"
+          }
+        },
+        "deepseek-v4-pro": {
+          "name": "DeepSeek-V4-Pro",
+		  "limit": {
+			"context": 1048576,
+			"output": 262144
+		  },
+          "options": {
+			"thinking": {"type": "enabled",
+						"budgetTokens": 8192	
+			},
+            "reasoning_effort": "high"
+          }
+        }
+      }
+    }
+  },
+  "plugin": [
+    "oh-my-openagent"
+  ],
+  "instructions": [
+    "docs/opencode-project-rules.md"
+  ]
+}

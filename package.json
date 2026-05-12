@@ -1,0 +1,39 @@
+{
+  "name": "schola",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Schola local-first knowledge workbench Phase 0 scaffold.",
+  "main": "dist-electron/electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://127.0.0.1:5173 npm run electron:dev\"",
+    "electron:dev": "npm run build:electron && electron dist-electron/electron/main.js",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.node.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "lint": "eslint .",
+    "test:e2e": "npm run build:electron && playwright test"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "typescript": "latest",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "concurrently": "latest",
+    "cross-env": "latest",
+    "electron": "latest",
+    "eslint": "latest",
+    "eslint-plugin-react-hooks": "latest",
+    "eslint-plugin-react-refresh": "latest",
+    "playwright": "latest",
+    "prettier": "latest",
+    "typescript-eslint": "latest",
+    "wait-on": "latest"
+  }
+}
