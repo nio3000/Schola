@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: greenery
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=greenery] {
+  --preview-bg: #f8faf3;
+  --preview-text: #3c4a3e;
+  --preview-heading: #2a3b2c;
+  --preview-heading-weight: 600;
+  --preview-muted: #7a8b7b;
+  --preview-link: #4a7c59;
+  --preview-link-hover: #365a40;
+  --preview-strong: #2a3b2c;
+  --preview-strong-weight: 600;
+  --preview-h1-border: #d5e0ce;
+  --preview-hr-border: #d5e0ce;
+  --preview-blockquote-bg: #4a7c590f;
+  --preview-blockquote-border: #4a7c59;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #edf2e7;
+  --preview-code-text: #3c4a3e;
+  --preview-pre-bg: #edf2e7;
+  --preview-pre-border: #d5e0ce;
+  --preview-pre-text: #3c4a3e;
+  --preview-th-bg: #e9efe3;
+  --preview-td-border: #d5e0ce;
+  --preview-wikilink: #4a7c59;
+  --preview-wikilink-border: #4a7c5959;
+  --preview-wikilink-broken: #a05050;
+  --preview-wikilink-broken-border: #a0505059;
+  --preview-hljs-text: #3c4a3e;
+  --preview-hljs-keyword: #8b4c4c;
+  --preview-hljs-string: #4a7c59;
+  --preview-hljs-number: #6b8c42;
+  --preview-hljs-comment: #7a8b7b;
+  --preview-hljs-title: #5c7c5a;
+  --preview-hljs-attr: #a07840;
+  --preview-hljs-builtin: #6b8c42;
+  --preview-hljs-meta: #5c7c5a;
+  --preview-hljs-symbol: #5c7c5a;
+  --preview-hljs-deletion: #8b4c4c;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.7;
+  --preview-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=greenery] .cm-editor { background: #f6faf1; }
+.editor-cm[data-editor-theme=greenery] .cm-editor .cm-content { caret-color: #4a7c59; }
+.editor-cm[data-editor-theme=greenery] .cm-editor .cm-scroller { color: #2e4a35; }
+.editor-cm[data-editor-theme=greenery] .cm-editor .cm-activeLine { background: #eaf0e4; }
+.editor-cm[data-editor-theme=greenery] .cm-editor .cm-selectionBackground { background: #d3e0cc!important; }
+.editor-cm[data-editor-theme=greenery] .cm-editor .cm-cursor { border-left-color: #4a7c59; }

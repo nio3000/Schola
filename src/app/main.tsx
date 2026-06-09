@@ -1,6 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { AppThemeBootstrap } from '../features/theme/AppThemeBootstrap';
+import { ThemeProvider } from '../features/theme/ThemeProvider';
 import '../styles.css';
 
 const rootElement = document.getElementById('root');
@@ -11,6 +13,10 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <React.StrictMode>
-    <App />
+    <ThemeProvider>
+      <AppThemeBootstrap>
+        <App />
+      </AppThemeBootstrap>
+    </ThemeProvider>
   </React.StrictMode>,
 );

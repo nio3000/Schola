@@ -3,7 +3,7 @@ const reactHooks = require('eslint-plugin-react-hooks');
 
 module.exports = tseslint.config(
   {
-    ignores: ['dist', 'dist-electron', 'node_modules', 'playwright-report', 'test-results', 'eslint.config.js', 'prettier.config.js', 'vite.config.ts', 'playwright.config.ts'],
+    ignores: ['dist', 'dist-electron', 'node_modules', 'playwright-report', 'test-results', 'eslint.config.js', 'prettier.config.js', 'vite.config.ts', 'vitest.config.ts', 'vitest.setup.ts', 'playwright.config.ts'],
   },
   ...tseslint.configs.recommended,
   {

@@ -1,0 +1,26 @@
+/*
+ * MWeb Themes: Shared typographic selectors
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ */
+
+.schola-markdown-preview[data-preview-theme=typo] h1,.schola-markdown-preview[data-preview-theme=typo] h2,.schola-markdown-preview[data-preview-theme=typo] h3,.schola-markdown-preview[data-preview-theme=typo] h4,.schola-markdown-preview[data-preview-theme=typo] h5,.schola-markdown-preview[data-preview-theme=typo] h6 {
+  color: #e8e0d0;
+  font-family: Noto Serif CJK SC,Source Han Serif SC,Songti SC,Georgia,serif;
+  font-weight: 700;
+}
+
+.schola-markdown-preview[data-preview-theme=typo] h1 {
+  border-bottom: 2px solid #3a372e;
+  margin-top: 1.6em;
+  padding-bottom: .35em;
+  font-size: 1.8rem;
+}
+
+.schola-markdown-preview[data-preview-theme=typo] h2 {
+  margin-top: 1.4em;
+  font-size: 1.45rem;
+}
+
+.schola-markdown-preview[data-preview-theme=typo] h3 {
+  font-size: 1.2rem;
+}

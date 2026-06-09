@@ -1,0 +1,30 @@
+/*
+ * MWeb Theme Registry — Aggregate Import
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * License: ISC (see docs/licenses/mweb-themes-ISC-license.md)
+ */
+
+@import './github.css';
+@import './medium.css';
+@import './whitey.css';
+@import './pixyll.css';
+@import './newsprint.css';
+@import './tomorrow.css';
+@import './solarized-light.css';
+@import './greenery.css';
+@import './m-book.css';
+@import './typo.css';
+@import './vue.css';
+@import './lark.css';
+@import './bear-default.css';
+@import './dracula.css';
+@import './night.css';
+@import './spacegray.css';
+@import './gotham.css';
+@import './cobalt.css';
+@import './solarized-dark.css';
+@import './charcoal.css';
+@import './olive-dunk.css';
+@import './mercury.css';
+@import './m-web.css';
+@import './_shared-selectors.css';

@@ -1,0 +1,280 @@
+/* ── Search overlay ────────────────────────── */
+
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.search-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(580px, 90vw);
+  max-height: min(560px, 80vh);
+  min-height: 200px;
+  background: var(--schola-settings-bg, var(--bg-secondary));
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+/* ── Header ────────────────────────────────── */
+
+.search-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-results-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.search-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.search-close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ── Query summary ─────────────────────────── */
+
+.search-query-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.search-query-label {
+  font-weight: 500;
+  color: var(--text-dimmed);
+  flex-shrink: 0;
+}
+
+.search-query-value {
+  color: var(--text-primary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Filter strip ──────────────────────────── */
+
+.search-filter-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  font-size: 0.72rem;
+  color: var(--text-dimmed);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.search-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+/* ── Results list ──────────────────────────── */
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.search-result-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 12px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.search-result-item:hover,
+.search-result-selected {
+  background: var(--bg-hover);
+}
+
+.search-result-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  grid-column: 1;
+  grid-row: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-path {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  grid-column: 1;
+  grid-row: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+}
+
+.search-result-matched {
+  font-size: 0.72rem;
+  color: var(--accent);
+  grid-column: 2;
+  grid-row: 1;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.search-result-type {
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.search-result-type-fileName { background: var(--bg-tag-blue); color: var(--tag-blue-text); }
+.search-result-type-path    { background: var(--bg-tag-green); color: var(--tag-green-text); }
+.search-result-type-heading { background: var(--bg-tag-purple); color: var(--tag-purple-text); }
+.search-result-type-wikilink{ background: var(--bg-tag-amber); color: var(--tag-amber-text); }
+
+/* ── Empty state ───────────────────────────── */
+
+.search-empty {
+  padding: 40px 20px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-dimmed);
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.search-empty-guidance {
+  color: var(--text-muted);
+}
+
+/* ── Trigger button in VaultPanel toolbar ──── */
+
+.search-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.search-trigger-btn:hover {
+  background: var(--bg-hover);
+}
+
+.search-trigger-icon {
+  font-size: 13px;
+}
+
+.search-trigger-label {
+  font-size: 12px;
+}
+
+/* ── Search bar (TopBar) ───────────────────── */
+
+.search-bar-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.search-bar-trigger:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.search-bar-icon {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.search-bar-placeholder {
+  font-size: 0.8rem;
+}
+
+.search-bar-shortcut {
+  font-size: 0.68rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--text-dimmed);
+  border: 1px solid var(--border);
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+}

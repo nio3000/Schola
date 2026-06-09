@@ -1,0 +1,60 @@
+/*
+ * MWeb Theme: newsprint
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=newsprint] {
+  --preview-bg: #fcfaf2;
+  --preview-text: #3a3a3a;
+  --preview-heading: #222;
+  --preview-heading-weight: 700;
+  --preview-muted: #777;
+  --preview-link: #8b4513;
+  --preview-link-hover: #5c2e0a;
+  --preview-strong: #222;
+  --preview-strong-weight: 700;
+  --preview-h1-border: #d4cbb6;
+  --preview-hr-border: #d4cbb6;
+  --preview-blockquote-bg: #b4a5821a;
+  --preview-blockquote-border: #b4a070;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #f0ece0;
+  --preview-code-text: #3a3a3a;
+  --preview-pre-bg: #f5f0e5;
+  --preview-pre-border: #d4cbb6;
+  --preview-pre-text: #3a3a3a;
+  --preview-th-bg: #efe8d8;
+  --preview-th-text: #2b241c;
+  --preview-td-border: #d4cbb6;
+  --preview-tr-even-bg: #00000009;
+  --preview-table-font-size: var(--editor-font-size, .92rem);
+  --preview-table-line-height: 1.6;
+  --preview-wikilink: #8b4513;
+  --preview-wikilink-border: #8b451359;
+  --preview-wikilink-broken: #a04040;
+  --preview-wikilink-broken-border: #a0404059;
+  --preview-hljs-text: #3a3a3a;
+  --preview-hljs-keyword: #a04040;
+  --preview-hljs-string: #406e40;
+  --preview-hljs-number: #6e5040;
+  --preview-hljs-comment: #999080;
+  --preview-hljs-title: #7050a0;
+  --preview-hljs-attr: #a07040;
+  --preview-hljs-builtin: #6e5040;
+  --preview-hljs-meta: #508050;
+  --preview-hljs-symbol: #7050a0;
+  --preview-hljs-deletion: #a04040;
+  --preview-font-size: 1rem;
+  --preview-line-height: 1.75;
+  --preview-font-family: "Noto Serif CJK SC", "Source Han Serif SC", Georgia, serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=newsprint] .cm-editor { background: #f8f5f0; }
+.editor-cm[data-editor-theme=newsprint] .cm-editor .cm-content { caret-color: #111; }
+.editor-cm[data-editor-theme=newsprint] .cm-editor .cm-scroller { color: #333; }
+.editor-cm[data-editor-theme=newsprint] .cm-editor .cm-activeLine { background: #efe9de; }
+.editor-cm[data-editor-theme=newsprint] .cm-editor .cm-selectionBackground { background: #ddd4c4!important; }
+.editor-cm[data-editor-theme=newsprint] .cm-editor .cm-cursor { border-left-color: #111; }

@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: solarized-dark
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=solarized-dark] {
+  --preview-bg: #002b36;
+  --preview-text: #839496;
+  --preview-heading: #eee8d5;
+  --preview-heading-weight: 600;
+  --preview-muted: #586e75;
+  --preview-link: #268bd2;
+  --preview-link-hover: #4da8e8;
+  --preview-strong: #eee8d5;
+  --preview-strong-weight: 600;
+  --preview-h1-border: #073642;
+  --preview-hr-border: #073642;
+  --preview-blockquote-bg: #0736424d;
+  --preview-blockquote-border: #586e75;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #ffffff0f;
+  --preview-code-text: #839496;
+  --preview-pre-bg: #00212b;
+  --preview-pre-border: #073642;
+  --preview-pre-text: #839496;
+  --preview-th-bg: #073642;
+  --preview-td-border: #073642;
+  --preview-wikilink: #268bd2;
+  --preview-wikilink-border: #268bd259;
+  --preview-wikilink-broken: #586e75;
+  --preview-wikilink-broken-border: #586e7559;
+  --preview-hljs-text: #839496;
+  --preview-hljs-keyword: #859900;
+  --preview-hljs-string: #2aa198;
+  --preview-hljs-number: #d33682;
+  --preview-hljs-comment: #586e75;
+  --preview-hljs-title: #268bd2;
+  --preview-hljs-attr: #b58900;
+  --preview-hljs-builtin: #d33682;
+  --preview-hljs-meta: #586e75;
+  --preview-hljs-symbol: #cb4b16;
+  --preview-hljs-deletion: #dc322f;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.65;
+  --preview-font-family: "Helvetica Neue", Arial, "PingFang SC", sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=solarized-dark] .cm-editor { background: #002b36; }
+.editor-cm[data-editor-theme=solarized-dark] .cm-editor .cm-content { caret-color: #839496; }
+.editor-cm[data-editor-theme=solarized-dark] .cm-editor .cm-scroller { color: #839496; }
+.editor-cm[data-editor-theme=solarized-dark] .cm-editor .cm-activeLine { background: #073642; }
+.editor-cm[data-editor-theme=solarized-dark] .cm-editor .cm-selectionBackground { background: #1a4a5a!important; }
+.editor-cm[data-editor-theme=solarized-dark] .cm-editor .cm-cursor { border-left-color: #839496; }

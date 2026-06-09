@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: olive-dunk
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=olive-dunk] {
+  --preview-bg: #1a1e16;
+  --preview-text: #c0c8b0;
+  --preview-heading: #d8e0c8;
+  --preview-heading-weight: 600;
+  --preview-muted: #809060;
+  --preview-link: #a0c870;
+  --preview-link-hover: #c0e090;
+  --preview-strong: #d8e0c8;
+  --preview-strong-weight: 600;
+  --preview-h1-border: #2a3020;
+  --preview-hr-border: #2a3020;
+  --preview-blockquote-bg: #a0c8700f;
+  --preview-blockquote-border: #a0c870;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #ffffff0d;
+  --preview-code-text: #d0d8b0;
+  --preview-pre-bg: #222820;
+  --preview-pre-border: #2a3020;
+  --preview-pre-text: #c0c8b0;
+  --preview-th-bg: #a0c87014;
+  --preview-td-border: #2a3020;
+  --preview-wikilink: #a0c870;
+  --preview-wikilink-border: #a0c87059;
+  --preview-wikilink-broken: #606060;
+  --preview-wikilink-broken-border: #60606059;
+  --preview-hljs-text: #c0c8b0;
+  --preview-hljs-keyword: #c8a0d0;
+  --preview-hljs-string: #a0d070;
+  --preview-hljs-number: #e0a060;
+  --preview-hljs-comment: #607050;
+  --preview-hljs-title: #80d0c0;
+  --preview-hljs-attr: #e0c080;
+  --preview-hljs-builtin: #e0a060;
+  --preview-hljs-meta: #80d0c0;
+  --preview-hljs-symbol: #c8a0d0;
+  --preview-hljs-deletion: #e06060;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.7;
+  --preview-font-family: "Helvetica Neue", Arial, "PingFang SC", sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=olive-dunk] .cm-editor { background: #333300; }
+.editor-cm[data-editor-theme=olive-dunk] .cm-editor .cm-content { caret-color: #c9c99b; }
+.editor-cm[data-editor-theme=olive-dunk] .cm-editor .cm-scroller { color: #c9c99b; }
+.editor-cm[data-editor-theme=olive-dunk] .cm-editor .cm-activeLine { background: #444411; }
+.editor-cm[data-editor-theme=olive-dunk] .cm-editor .cm-selectionBackground { background: #555522!important; }
+.editor-cm[data-editor-theme=olive-dunk] .cm-editor .cm-cursor { border-left-color: #c9c99b; }

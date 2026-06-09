@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: medium
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=medium] {
+  --preview-bg: #fafafa;
+  --preview-text: #292929;
+  --preview-heading: #191919;
+  --preview-heading-weight: 700;
+  --preview-muted: #757575;
+  --preview-link: #1a8917;
+  --preview-link-hover: #156912;
+  --preview-strong: #191919;
+  --preview-strong-weight: 700;
+  --preview-h1-border: #e8e8e8;
+  --preview-hr-border: #e8e8e8;
+  --preview-blockquote-bg: #f5f5f5;
+  --preview-blockquote-border: #1a8917;
+  --preview-blockquote-radius: 0 6px 6px 0;
+  --preview-code-bg: #f0f0f0;
+  --preview-code-text: #292929;
+  --preview-pre-bg: #f5f5f5;
+  --preview-pre-border: #e8e8e8;
+  --preview-pre-text: #292929;
+  --preview-th-bg: #f5f5f5;
+  --preview-td-border: #e8e8e8;
+  --preview-wikilink: #1a8917;
+  --preview-wikilink-border: #1a891759;
+  --preview-wikilink-broken: #b34040;
+  --preview-wikilink-broken-border: #b3404059;
+  --preview-hljs-text: #292929;
+  --preview-hljs-keyword: #b34040;
+  --preview-hljs-string: #1a6e17;
+  --preview-hljs-number: #005cc5;
+  --preview-hljs-comment: #757575;
+  --preview-hljs-title: #5c3d99;
+  --preview-hljs-attr: #b36200;
+  --preview-hljs-builtin: #005cc5;
+  --preview-hljs-meta: #1a8917;
+  --preview-hljs-symbol: #5c3d99;
+  --preview-hljs-deletion: #b34040;
+  --preview-font-size: 1.05rem;
+  --preview-line-height: 1.72;
+  --preview-font-family: Georgia, "Times New Roman", "Noto Serif CJK SC", serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=medium] .cm-editor { background: #fafafa; }
+.editor-cm[data-editor-theme=medium] .cm-editor .cm-content { caret-color: #333; }
+.editor-cm[data-editor-theme=medium] .cm-editor .cm-scroller { color: rgba(0,0,0,.84); }
+.editor-cm[data-editor-theme=medium] .cm-editor .cm-activeLine { background: #f0f0f0; }
+.editor-cm[data-editor-theme=medium] .cm-editor .cm-selectionBackground { background: #d0d0d0!important; }
+.editor-cm[data-editor-theme=medium] .cm-editor .cm-cursor { border-left-color: #333; }

@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: typo
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=typo] {
+  --preview-bg: #1a1a14;
+  --preview-text: #d4cfbf;
+  --preview-heading: #e8e0d0;
+  --preview-heading-weight: 700;
+  --preview-muted: #a8a090;
+  --preview-link: #c8a86e;
+  --preview-link-hover: #d4b878;
+  --preview-strong: #e8e0d0;
+  --preview-strong-weight: 800;
+  --preview-h1-border: #3a372e;
+  --preview-hr-border: #3a372e;
+  --preview-blockquote-bg: #5a55442e;
+  --preview-blockquote-border: #5a5544;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #c8b48c1f;
+  --preview-code-text: #d4c4a0;
+  --preview-pre-bg: #141310cc;
+  --preview-pre-border: #3a372e;
+  --preview-pre-text: #d4cfbf;
+  --preview-th-bg: #5a554433;
+  --preview-td-border: #3a372e;
+  --preview-wikilink: #c8a86e;
+  --preview-wikilink-border: #c8a86e59;
+  --preview-wikilink-broken: #5f5f5f;
+  --preview-wikilink-broken-border: #5f5f5f59;
+  --preview-hljs-text: #d4cfbf;
+  --preview-hljs-keyword: #c792ea;
+  --preview-hljs-string: #c3e88d;
+  --preview-hljs-number: #f78c6c;
+  --preview-hljs-comment: #676e95;
+  --preview-hljs-title: #82aaff;
+  --preview-hljs-attr: #ffcb6b;
+  --preview-hljs-builtin: #f78c6c;
+  --preview-hljs-meta: #89ddff;
+  --preview-hljs-symbol: #c792ea;
+  --preview-hljs-deletion: #f07178;
+  --preview-font-size: .98rem;
+  --preview-line-height: 1.85;
+  --preview-font-family: "Noto Serif CJK SC", "Source Han Serif SC", Georgia, serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=typo] .cm-editor { background: #181818; }
+.editor-cm[data-editor-theme=typo] .cm-editor .cm-content { caret-color: #c9c9c9; }
+.editor-cm[data-editor-theme=typo] .cm-editor .cm-scroller { color: #c9c9c9; }
+.editor-cm[data-editor-theme=typo] .cm-editor .cm-activeLine { background: #242424; }
+.editor-cm[data-editor-theme=typo] .cm-editor .cm-selectionBackground { background: #3a3a3a!important; }
+.editor-cm[data-editor-theme=typo] .cm-editor .cm-cursor { border-left-color: #c9c9c9; }

@@ -1,0 +1,89 @@
+/*
+ * Schola GitHub Dark Dimmed Theme
+ * Colors mapped from primer/github-vscode-theme (MIT license)
+ * Source: https://github.com/primer/github-vscode-theme
+ * Attribution: Copyright (c) 2021 GitHub Inc. - MIT License
+ */
+
+[data-theme="github-dark-dimmed"] {
+  --activitybar-bg: #22272e;
+  --activitybar-hover: #2d333b;
+  --activitybar-active: #539bf5;
+  --sidebar-bg: #1c2128;
+  --sidebar-border: #444c56;
+  --editor-bg: #22272e;
+  --panel-bg: #1c2128;
+  --panel-border: #444c56;
+  --statusbar-bg: #22272e;
+  --resizer-bg: #444c56;
+  --border-color: #444c56;
+  --menubar-bg: #22272e;
+  --menubar-border: #444c56;
+  --menubar-item-text: #adbac7;
+  --menubar-item-hover-bg: #2d333b;
+  --menubar-item-active-bg: #2d333b;
+  --menubar-dropdown-bg: #1c2128;
+  --menubar-dropdown-border: #444c56;
+  --menubar-dropdown-text: #adbac7;
+  --menubar-dropdown-hover: #2d333b;
+  --menubar-dropdown-separator: #444c56;
+  --menubar-dropdown-disabled: #545d68;
+  
+  --bg-primary: #22272e;
+  --bg-secondary: #1c2128;
+  --bg-tertiary: #22272e;
+  --bg-surface: #2d333b;
+  --bg-hover: #2d333b;
+  --bg-active: #444c56;
+  --border: #444c56;
+  --border-muted: #373e47;
+  --border-strong: #545d68;
+  --text-primary: #adbac7;
+  --text-secondary: #768390;
+  --text-muted: #545d68;
+  --text-dimmed: #444c56;
+  --accent: #539bf5;
+  --accent-dim: rgba(83, 155, 245, 0.14);
+  --accent-hover: rgba(83, 155, 245, 0.24);
+  --input-bg: #22272e;
+  --input-border: #444c56;
+  --button-bg: #2d333b;
+  --button-hover-bg: #444c56;
+  --preview-bg: #22272e;
+  --preview-text: #adbac7;
+  --codemirror-bg: #22272e;
+  --codemirror-text: #adbac7;
+  --artifact-bg: #22272e;
+  --ai-research-bg: #22272e;
+  --settings-bg: #1c2128;
+  --graph-bg: #22272e;
+  --filetree-bg: #1c2128;
+  --color-success: #57ab5a;
+  --color-success-bg: rgba(87, 171, 90, 0.14);
+  --color-warning: #c69026;
+  --color-warning-bg: rgba(198, 144, 38, 0.14);
+  --color-error: #e5534b;
+  --color-error-bg: rgba(229, 83, 75, 0.14);
+  --color-info: #539bf5;
+  --color-info-bg: rgba(83, 155, 245, 0.14);
+  --color-disabled: #545d68;
+  --color-disabled-bg: rgba(84, 93, 104, 0.14);
+  --color-privacy: #b083f0;
+  --color-privacy-bg: rgba(176, 131, 240, 0.14);
+  --color-draft: #768390;
+  --color-draft-bg: rgba(118, 131, 144, 0.14);
+  --color-source-backed: #4ac26b;
+  --color-source-backed-bg: rgba(74, 194, 107, 0.14);
+  --color-model-inferred: #e26fad;
+  --color-model-inferred-bg: rgba(226, 111, 173, 0.14);
+  --graph-background: #22272e;
+  --node-fill: #539bf5;
+  --node-selected: #6cb6ff;
+  --node-highlighted: #4ac26b;
+  --edge-color: rgba(118, 131, 144, 0.42);
+  --edge-highlighted: #6cb6ff;
+  --relation-label: #adbac7;
+  --grid-color: rgba(83, 155, 245, 0.12);
+  --3d-candidate-depth: rgba(74, 194, 107, 0.24);
+  --graph-3d-candidate-depth: var(--3d-candidate-depth);
+}

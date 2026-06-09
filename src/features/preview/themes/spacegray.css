@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: spacegray
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=spacegray] {
+  --preview-bg: #1d1f21;
+  --preview-text: #c5c8c6;
+  --preview-heading: #e0e0e0;
+  --preview-heading-weight: 600;
+  --preview-muted: #707880;
+  --preview-link: #81a2be;
+  --preview-link-hover: #9ec0de;
+  --preview-strong: #e0e0e0;
+  --preview-strong-weight: 600;
+  --preview-h1-border: #373b41;
+  --preview-hr-border: #373b41;
+  --preview-blockquote-bg: #ffffff08;
+  --preview-blockquote-border: #969896;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #ffffff0f;
+  --preview-code-text: #c5c8c6;
+  --preview-pre-bg: #282a2e;
+  --preview-pre-border: #373b41;
+  --preview-pre-text: #c5c8c6;
+  --preview-th-bg: #ffffff0a;
+  --preview-td-border: #373b41;
+  --preview-wikilink: #81a2be;
+  --preview-wikilink-border: #81a2be59;
+  --preview-wikilink-broken: #505050;
+  --preview-wikilink-broken-border: #50505059;
+  --preview-hljs-text: #c5c8c6;
+  --preview-hljs-keyword: #b294bb;
+  --preview-hljs-string: #b5bd68;
+  --preview-hljs-number: #de935f;
+  --preview-hljs-comment: #707880;
+  --preview-hljs-title: #81a2be;
+  --preview-hljs-attr: #f0c674;
+  --preview-hljs-builtin: #de935f;
+  --preview-hljs-meta: #8abeb7;
+  --preview-hljs-symbol: #b294bb;
+  --preview-hljs-deletion: #c66;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.7;
+  --preview-font-family: "Helvetica Neue", Arial, "PingFang SC", sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=spacegray] .cm-editor { background: #2b303b; }
+.editor-cm[data-editor-theme=spacegray] .cm-editor .cm-content { caret-color: #c0c5ce; }
+.editor-cm[data-editor-theme=spacegray] .cm-editor .cm-scroller { color: #c0c5ce; }
+.editor-cm[data-editor-theme=spacegray] .cm-editor .cm-activeLine { background: #343a46; }
+.editor-cm[data-editor-theme=spacegray] .cm-editor .cm-selectionBackground { background: #4f5b66!important; }
+.editor-cm[data-editor-theme=spacegray] .cm-editor .cm-cursor { border-left-color: #c0c5ce; }

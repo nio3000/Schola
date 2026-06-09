@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: pixyll
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=pixyll] {
+  --preview-bg: #fff;
+  --preview-text: #333;
+  --preview-heading: #1a1a1a;
+  --preview-heading-weight: 700;
+  --preview-muted: #828282;
+  --preview-link: #2a7ae2;
+  --preview-link-hover: #1756a9;
+  --preview-strong: #1a1a1a;
+  --preview-strong-weight: 700;
+  --preview-h1-border: #e8e8e8;
+  --preview-hr-border: #e8e8e8;
+  --preview-blockquote-bg: #fafafa;
+  --preview-blockquote-border: #2a7ae2;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #f5f5f5;
+  --preview-code-text: #333;
+  --preview-pre-bg: #f5f5f5;
+  --preview-pre-border: #e8e8e8;
+  --preview-pre-text: #333;
+  --preview-th-bg: #fafafa;
+  --preview-td-border: #e8e8e8;
+  --preview-wikilink: #2a7ae2;
+  --preview-wikilink-border: #2a7ae259;
+  --preview-wikilink-broken: #d14;
+  --preview-wikilink-broken-border: #dd114459;
+  --preview-hljs-text: #333;
+  --preview-hljs-keyword: #d14;
+  --preview-hljs-string: green;
+  --preview-hljs-number: #005cc5;
+  --preview-hljs-comment: #999;
+  --preview-hljs-title: #6f42c1;
+  --preview-hljs-attr: #e36209;
+  --preview-hljs-builtin: #005cc5;
+  --preview-hljs-meta: #22863a;
+  --preview-hljs-symbol: #6f42c1;
+  --preview-hljs-deletion: #d14;
+  --preview-font-size: 1rem;
+  --preview-line-height: 1.7;
+  --preview-font-family: Georgia, "Times New Roman", "Noto Serif CJK SC", serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=pixyll] .cm-editor { background: #fff; }
+.editor-cm[data-editor-theme=pixyll] .cm-editor .cm-content { caret-color: #006fc6; }
+.editor-cm[data-editor-theme=pixyll] .cm-editor .cm-scroller { color: #333; }
+.editor-cm[data-editor-theme=pixyll] .cm-editor .cm-activeLine { background: #f3f6fa; }
+.editor-cm[data-editor-theme=pixyll] .cm-editor .cm-selectionBackground { background: #c7dcf0!important; }
+.editor-cm[data-editor-theme=pixyll] .cm-editor .cm-cursor { border-left-color: #006fc6; }

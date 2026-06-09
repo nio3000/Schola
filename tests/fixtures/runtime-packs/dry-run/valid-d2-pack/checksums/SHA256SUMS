@@ -1,0 +1,3 @@
+dryrun-sha256-package  schola-pack.json
+dryrun-sha256-manifest  schola-pack.json
+dryrun-sha256-runtime   runtime/

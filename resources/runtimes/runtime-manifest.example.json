@@ -1,0 +1,21 @@
+{
+  "_comment": "Phase 3-4-D-R2: Runtime manifest example. Real values filled by build-docling-venv.ps1.",
+  "runtimeId": "docling-bundled",
+  "schemaVersion": 1,
+  "python": {
+    "executable": "docling-venv/Scripts/python.exe",
+    "version": null,
+    "comment": "version filled by build script from python --version"
+  },
+  "packages": {
+    "docling": null,
+    "markitdown": null,
+    "torch": null,
+    "torchvision": null,
+    "transformers": null,
+    "comment": "versions filled by build script from pip freeze"
+  },
+  "platform": "win32-x64",
+  "createdAt": null,
+  "checksum": null
+}

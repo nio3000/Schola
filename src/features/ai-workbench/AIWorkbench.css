@@ -1,0 +1,359 @@
+/* AI Workbench Styles — Phase 4-1-IMP-7: Skill Preset Registry + Context Confirmation */
+
+.aw-entry {
+  padding: 2rem;
+  text-align: center;
+}
+.aw-entry button {
+  padding: 0.75rem 2rem;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.aw-note {
+  color: #888;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.aw-workbench {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.aw-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border-color, #ddd);
+}
+.aw-header h2 { margin: 0; }
+
+.aw-three-columns {
+  display: grid;
+  grid-template-columns: 240px 1fr 280px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.aw-left, .aw-right {
+  padding: 1rem;
+  border-right: 1px solid var(--border-color, #ddd);
+  overflow-y: auto;
+}
+.aw-right { border-right: none; border-left: 1px solid var(--border-color, #ddd); }
+.aw-center {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.aw-placeholder {
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  background: var(--bg-secondary, #f5f5f5);
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.aw-chat-area {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.aw-input-area {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border-color, #ddd);
+}
+.aw-input-area textarea {
+  flex: 1;
+  padding: 0.5rem;
+  resize: none;
+  height: 60px;
+}
+.aw-input-area button {
+  padding: 0.5rem 1rem;
+}
+
+.aw-footer {
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border-color, #ddd);
+  text-align: center;
+}
+.aw-byok-note {
+  color: #888;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+/* ── Context Confirmation Panel ───────────────────── */
+
+.aw-context-confirmation {
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.aw-cc-title {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-secondary, #f0f0f0);
+  font-size: 0.95rem;
+  border-bottom: 1px solid var(--border-color, #ddd);
+}
+
+.aw-cc-section {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+.aw-cc-section:last-child {
+  border-bottom: none;
+}
+
+.aw-cc-label {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 0.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.aw-cc-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 0.35rem;
+}
+.aw-cc-value:last-child {
+  margin-bottom: 0;
+}
+
+/* File list */
+.aw-cc-file-list {
+  list-style: none;
+  margin: 0.3rem 0 0 0;
+  padding: 0;
+}
+
+.aw-cc-file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
+}
+
+.aw-cc-file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, 'Consolas', 'Source Code Pro', monospace);
+  font-size: 0.8rem;
+}
+
+.aw-cc-file-tokens {
+  color: #888;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.aw-cc-file-truncated {
+  color: #d97706;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Token summary */
+.aw-cc-token-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.aw-cc-token-count {
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: var(--font-mono, 'Consolas', 'Source Code Pro', monospace);
+}
+
+.aw-cc-truncation-note {
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  color: #d97706;
+}
+
+/* Privacy warning */
+.aw-cc-warning {
+  background: #fef9e7;
+  border-left: 3px solid #f0c040;
+  font-size: 0.8rem;
+  color: #7a6500;
+  line-height: 1.5;
+}
+.aw-cc-warning strong {
+  color: #5a4800;
+}
+
+/* Confirmation checkbox */
+.aw-cc-confirm {
+  background: var(--bg-secondary, #f8f8f8);
+}
+
+.aw-cc-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.aw-cc-checkbox-label input[type="checkbox"] {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+/* ── Dark theme overrides ─────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .aw-cc-warning {
+    background: #3a3200;
+    border-left-color: #c09030;
+    color: #d0c000;
+  }
+  .aw-cc-warning strong {
+    color: #e0d040;
+  }
+}
+
+/* ── Skill List (Left Panel) ──────────────────────── */
+
+.aw-skill-note {
+  padding: 0.5rem;
+  margin: 0.5rem 0;
+  font-size: 0.75rem;
+  color: #888;
+  background: var(--bg-secondary, #f5f5f5);
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+.aw-skill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.aw-skill-card {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.aw-skill-card:hover {
+  border-color: #888;
+}
+.aw-skill-card--selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.06);
+}
+.aw-skill-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.2rem;
+}
+.aw-skill-category-tag {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  background: var(--bg-secondary, #eee);
+  border-radius: 3px;
+  color: #555;
+}
+.aw-skill-card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.15rem;
+}
+.aw-skill-card-desc {
+  font-size: 0.72rem;
+  color: #777;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.aw-skill-card-meta {
+  margin-top: 0.3rem;
+}
+.aw-skill-privacy {
+  font-size: 0.65rem;
+  color: #999;
+}
+
+/* ── Skill Detail Panel (Center Panel) ────────────── */
+
+.aw-skill-detail {
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 6px;
+  overflow: hidden;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.aw-skill-detail-title {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  background: rgba(59, 130, 246, 0.08);
+  font-size: 0.95rem;
+  border-bottom: 1px solid var(--border-color, #ddd);
+}
+
+.aw-cc-sub {
+  font-size: 0.75rem;
+  color: #999;
+  margin-top: 0.15rem;
+}
+
+.aw-prompt-preview {
+  margin: 0.3rem 0 0 0;
+  padding: 0.6rem;
+  background: var(--bg-secondary, #f8f8f8);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: var(--font-mono, 'Consolas', 'Source Code Pro', monospace);
+}
+
+.aw-forbidden-list {
+  margin: 0.3rem 0 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.78rem;
+  color: #888;
+  line-height: 1.5;
+}
+.aw-forbidden-list li {
+  margin-bottom: 0.1rem;
+}
+
+/* ── ContextPack v2 Scope Styles ──────────────────── */
+
+.aw-cc-wikilink-on {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.aw-cc-wikilink-off {
+  color: #999;
+}

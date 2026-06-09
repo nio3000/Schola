@@ -1,87 +1,128 @@
+/**
+ * App — Phase 5 / LEGACY-FEATURE-RECONNECT-R5.
+ *
+ * Uses useVault() as the single source of truth for vault state.
+ * Passes complete VaultState + all handlers to WorkspaceShell.
+ */
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
-import type { AppInfo } from '../lib/contracts/app.types';
-import { getAppInfo } from '../lib/platform/schola-api';
-
-interface AppShellState {
-  readonly status: 'loading' | 'ready' | 'error';
-  readonly info: AppInfo | null;
-  readonly message: string;
-}
-
-const initialState: AppShellState = {
-  status: 'loading',
-  info: null,
-  message: '正在检查 Schola Phase 0 安全脚手架。',
-};
+import type { HelpOpenResult } from '../lib/contracts/app.types';
+import { getAppInfo, openHelp } from '../lib/platform/schola-api';
+import { useVault } from '../features/vault/hooks/useVault';
+import { WorkspaceShell } from '../features/workspace/WorkspaceShell';
 
 export function App(): ReactElement {
-  const [state, setState] = useState<AppShellState>(initialState);
+  const [ready, setReady] = useState(false);
+  const [appError, setAppError] = useState<string | null>(null);
+  const [isOpening, setIsOpening] = useState(false);
+
+  const {
+    activeVault,
+    recentVaults,
+    fileTree,
+    selectedFile,
+    status: vaultStatus,
+    message: vaultMessage,
+    handleOpenVault,
+    handleOpenVaultByPath,
+    handleCreateVault,
+    handleCloseVault,
+    handleSelectFile,
+    handleCreateNote,
+    handleCreateFolder,
+    handleRenameNote,
+    handleRenameFolder,
+    handleDeleteNote,
+    handleDeleteFolder,
+    handleMoveNote,
+    handleMoveFolder,
+    handleRefreshVault,
+  } = useVault();
+
+  const hasVault = activeVault !== null;
 
   useEffect(() => {
     let isActive = true;
-
-    async function loadAppInfo(): Promise<void> {
-      try {
-        const appInfo = await getAppInfo();
-
-        if (isActive) {
-          setState({
-            status: 'ready',
-            info: appInfo,
-            message: 'Electron + React 安全脚手架已启动。',
-          });
-        }
-      } catch (error) {
-        if (isActive) {
-          setState({
-            status: 'error',
-            info: null,
-            message: error instanceof Error ? error.message : '无法读取应用信息。',
-          });
-        }
-      }
-    }
-
-    void loadAppInfo();
-
-    return () => {
-      isActive = false;
-    };
+    getAppInfo()
+      .then(() => { if (isActive) setReady(true); })
+      .catch((err) => {
+        if (isActive) setAppError(err instanceof Error ? err.message : '无法加载应用。');
+      });
+    return () => { isActive = false; };
   }, []);
 
+  const onOpenVault = async (): Promise<void> => {
+    setIsOpening(true);
+    setAppError(null);
+    try {
+      await handleOpenVault();
+    } catch (err) {
+      setAppError(err instanceof Error ? err.message : '打开知识库失败。');
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
+  const onCreateVault = async (): Promise<void> => {
+    setIsOpening(true);
+    setAppError(null);
+    try {
+      await handleCreateVault();
+    } catch (err) {
+      setAppError(err instanceof Error ? err.message : '创建知识库失败。');
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
+  const onOpenVaultByPath = async (rootPath: string): Promise<void> => {
+    setIsOpening(true);
+    setAppError(null);
+    try {
+      await handleOpenVaultByPath(rootPath);
+    } catch (err) {
+      setAppError(err instanceof Error ? err.message : '打开知识库失败。');
+    } finally {
+      setIsOpening(false);
+    }
+  };
+
+  const onCloseVault = async (): Promise<void> => {
+    try { await handleCloseVault(); } catch { /* non-fatal */ }
+  };
+
+  const onOpenHelp = async (): Promise<HelpOpenResult> => {
+    try { return await openHelp(); }
+    catch { return { ok: false, status: 'placeholder' as const, title: '帮助', message: '无法加载帮助信息。' }; }
+  };
+
   return (
-    <main className="app-shell">
-      <section className="app-card" aria-labelledby="app-title">
-        <p className="eyebrow">Phase 0</p>
-        <h1 id="app-title">Schola</h1>
-        <p className="lead">本地优先科研知识工作台的 Electron React 安全底座。</p>
-
-        <div className="status-panel" data-status={state.status}>
-          <span className="status-dot" aria-hidden="true" />
-          <p>{state.message}</p>
-        </div>
-
-        <dl className="info-grid" aria-label="应用信息">
-          <div>
-            <dt>安全边界</dt>
-            <dd>main / preload / renderer 三层隔离</dd>
-          </div>
-          <div>
-            <dt>Preload API</dt>
-            <dd>window.schola.app.getInfo</dd>
-          </div>
-          <div>
-            <dt>当前阶段</dt>
-            <dd>{state.info?.phase ?? '检测中'}</dd>
-          </div>
-          <div>
-            <dt>运行平台</dt>
-            <dd>{state.info?.platform ?? '检测中'}</dd>
-          </div>
-        </dl>
-      </section>
-    </main>
+    <WorkspaceShell
+      activeVault={activeVault}
+      recentVaults={recentVaults}
+      fileTree={fileTree}
+      selectedFile={selectedFile}
+      hasVault={hasVault}
+      vaultStatus={vaultStatus}
+      vaultMessage={vaultMessage}
+      appReady={ready}
+      appError={appError}
+      isOpening={isOpening}
+      onOpenVault={onOpenVault}
+      onCreateVault={onCreateVault}
+      onOpenVaultByPath={onOpenVaultByPath}
+      onCloseVault={onCloseVault}
+      onSelectFile={handleSelectFile}
+      onOpenHelp={onOpenHelp}
+      onCreateNote={handleCreateNote}
+      onCreateFolder={handleCreateFolder}
+      onRenameNote={handleRenameNote}
+      onRenameFolder={handleRenameFolder}
+      onDeleteNote={handleDeleteNote}
+      onDeleteFolder={handleDeleteFolder}
+      onMoveNote={handleMoveNote}
+      onMoveFolder={handleMoveFolder}
+      onRefreshVault={handleRefreshVault}
+    />
   );
 }
-

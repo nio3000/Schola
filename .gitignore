@@ -1,32 +1,35 @@
-# dependencies
-node_modules/
-
-# build outputs
-dist/
-dist-electron/
-out/
-build/
-release/
-
-# env
-.env
-.env.*
-!.env.example
-
-# logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-pnpm-debug.log*
-
-# test outputs
-coverage/
-test-results/
-playwright-report/
-
-# local tool/cache
+docs/
+.codex/
+.opencode/
+opencode.json
+AGENTS.md
+.playwright-mcp/
+.rollback/
 .sisyphus/
 
-# OS
-.DS_Store
-Thumbs.db
+node_modules/
+dist/
+dist-electron/
+release/
+test-results/
+tmp/
+perf-vaults/
+
+
+npm
+src/styles - 副本.css
+tests/unit/1.md
+
+tests/.schola/
+tests/456/
+tests/attachments/
+tests/notes/
+tests/test1/
+tests/_exports/
+tests/*.pdf
+tests/*.docx
+tests/*.pptx
+tests/*.rar
+tests/*.zip
+tests/*.html
+tests/*.md

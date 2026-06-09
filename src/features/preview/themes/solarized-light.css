@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: solarized-light
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=solarized-light] {
+  --preview-bg: #fdf6e3;
+  --preview-text: #657b83;
+  --preview-heading: #073642;
+  --preview-heading-weight: 600;
+  --preview-muted: #93a1a1;
+  --preview-link: #268bd2;
+  --preview-link-hover: #1a609b;
+  --preview-strong: #073642;
+  --preview-strong-weight: 600;
+  --preview-h1-border: #eee8d5;
+  --preview-hr-border: #eee8d5;
+  --preview-blockquote-bg: #eee8d5;
+  --preview-blockquote-border: #93a1a1;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #eee8d5;
+  --preview-code-text: #657b83;
+  --preview-pre-bg: #eee8d5;
+  --preview-pre-border: #d3cbb6;
+  --preview-pre-text: #657b83;
+  --preview-th-bg: #eee8d5;
+  --preview-td-border: #d3cbb6;
+  --preview-wikilink: #268bd2;
+  --preview-wikilink-border: #268bd259;
+  --preview-wikilink-broken: #dc322f;
+  --preview-wikilink-broken-border: #dc322f59;
+  --preview-hljs-text: #657b83;
+  --preview-hljs-keyword: #859900;
+  --preview-hljs-string: #2aa198;
+  --preview-hljs-number: #d33682;
+  --preview-hljs-comment: #93a1a1;
+  --preview-hljs-title: #268bd2;
+  --preview-hljs-attr: #b58900;
+  --preview-hljs-builtin: #d33682;
+  --preview-hljs-meta: #586e75;
+  --preview-hljs-symbol: #cb4b16;
+  --preview-hljs-deletion: #dc322f;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.65;
+  --preview-font-family: "Helvetica Neue", Arial, "PingFang SC", sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=solarized-light] .cm-editor { background: #fdf6e3; }
+.editor-cm[data-editor-theme=solarized-light] .cm-editor .cm-content { caret-color: #268bd2; }
+.editor-cm[data-editor-theme=solarized-light] .cm-editor .cm-scroller { color: #657b83; }
+.editor-cm[data-editor-theme=solarized-light] .cm-editor .cm-activeLine { background: #eee8d5; }
+.editor-cm[data-editor-theme=solarized-light] .cm-editor .cm-selectionBackground { background: #d3cbb7!important; }
+.editor-cm[data-editor-theme=solarized-light] .cm-editor .cm-cursor { border-left-color: #268bd2; }

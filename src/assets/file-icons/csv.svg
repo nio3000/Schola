@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="Spreadsheet file">
+  <path d="M6 3h8l4 4v14H6V3Z" fill="#e8f5e9"/>
+  <path d="M14 3v4h4" fill="#68b878"/>
+  <rect x="7.5" y="10" width="9" height="7" rx="1" fill="#2d8f4e"/>
+  <path d="M7.8 12.3h8.4M7.8 14.6h8.4M10.5 10.3v6.4M13.5 10.3v6.4" stroke="#f5fff6" stroke-width=".8"/>
+</svg>

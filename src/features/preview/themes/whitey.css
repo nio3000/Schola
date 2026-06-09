@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: whitey
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=whitey] {
+  --preview-bg: #fff;
+  --preview-text: #2c2c2c;
+  --preview-heading: #1a1a1a;
+  --preview-heading-weight: 600;
+  --preview-muted: #6b6b6b;
+  --preview-link: #1a73e8;
+  --preview-link-hover: #1557b0;
+  --preview-strong: #1a1a1a;
+  --preview-strong-weight: 700;
+  --preview-h1-border: #e0e0e0;
+  --preview-hr-border: #e0e0e0;
+  --preview-blockquote-bg: #f8f9fa;
+  --preview-blockquote-border: #dadce0;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #f1f3f4;
+  --preview-code-text: #2c2c2c;
+  --preview-pre-bg: #f8f9fa;
+  --preview-pre-border: #e0e0e0;
+  --preview-pre-text: #2c2c2c;
+  --preview-th-bg: #f8f9fa;
+  --preview-td-border: #e0e0e0;
+  --preview-wikilink: #1a73e8;
+  --preview-wikilink-border: #1a73e859;
+  --preview-wikilink-broken: #d93025;
+  --preview-wikilink-broken-border: #d9302559;
+  --preview-hljs-text: #2c2c2c;
+  --preview-hljs-keyword: #c5221f;
+  --preview-hljs-string: #188038;
+  --preview-hljs-number: #1967d2;
+  --preview-hljs-comment: #5f6368;
+  --preview-hljs-title: #7b1fa2;
+  --preview-hljs-attr: #e8710a;
+  --preview-hljs-builtin: #1967d2;
+  --preview-hljs-meta: #188038;
+  --preview-hljs-symbol: #7b1fa2;
+  --preview-hljs-deletion: #c5221f;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.7;
+  --preview-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=whitey] .cm-editor { background: #fff; }
+.editor-cm[data-editor-theme=whitey] .cm-editor .cm-content { caret-color: #111; }
+.editor-cm[data-editor-theme=whitey] .cm-editor .cm-scroller { color: #333; }
+.editor-cm[data-editor-theme=whitey] .cm-editor .cm-activeLine { background: #f5f5f5; }
+.editor-cm[data-editor-theme=whitey] .cm-editor .cm-selectionBackground { background: #d4d4d4!important; }
+.editor-cm[data-editor-theme=whitey] .cm-editor .cm-cursor { border-left-color: #111; }

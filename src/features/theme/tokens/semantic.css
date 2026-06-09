@@ -1,0 +1,83 @@
+/* Semantic aliases consumed by Phase 5 UI surfaces. */
+:root {
+  --schola-bg: var(--bg-primary);
+  --schola-bg-subtle: var(--bg-secondary);
+  --schola-bg-muted: var(--bg-tertiary);
+  --schola-fg: var(--text-primary);
+  --schola-fg-muted: var(--text-secondary);
+  --schola-border: var(--border);
+
+  --schola-menubar-bg: var(--menubar-bg, var(--bg-primary));
+  --schola-sidebar-bg: var(--sidebar-bg, var(--bg-secondary));
+  --schola-editor-bg: var(--editor-bg, var(--bg-primary));
+  --schola-preview-bg: var(--preview-bg, var(--bg-primary));
+  --schola-preview-fg: var(--preview-text, var(--text-primary));
+  --schola-graph-bg: var(--graph-bg, var(--bg-primary));
+  --schola-settings-bg: var(--settings-bg, var(--bg-primary));
+  --schola-statusbar-bg: var(--statusbar-bg, var(--bg-tertiary));
+  --schola-artifact-bg: var(--artifact-bg, var(--bg-primary));
+  --schola-ai-research-bg: var(--ai-research-bg, var(--bg-primary));
+
+  --schola-workbench-activitybar-bg: var(--activitybar-bg);
+  --schola-workbench-activitybar-hover: var(--activitybar-hover);
+  --schola-workbench-activitybar-active: var(--activitybar-active);
+  --schola-workbench-sidebar-bg: var(--sidebar-bg);
+  --schola-workbench-sidebar-border: var(--sidebar-border);
+  --schola-workbench-editor-bg: var(--editor-bg);
+  --schola-workbench-panel-bg: var(--panel-bg);
+  --schola-workbench-panel-border: var(--panel-border);
+  --schola-workbench-statusbar-bg: var(--statusbar-bg);
+  --schola-workbench-resizer-bg: var(--resizer-bg);
+  --schola-workbench-border-color: var(--border-color);
+
+  --schola-workbench-menubar-bg: var(--menubar-bg);
+  --schola-workbench-menubar-border: var(--menubar-border);
+  --schola-workbench-menubar-item-text: var(--menubar-item-text);
+  --schola-workbench-menubar-item-hover-bg: var(--menubar-item-hover-bg);
+  --schola-workbench-menubar-item-active-bg: var(--menubar-item-active-bg);
+  --schola-workbench-menubar-dropdown-bg: var(--menubar-dropdown-bg);
+  --schola-workbench-menubar-dropdown-border: var(--menubar-dropdown-border);
+  --schola-workbench-menubar-dropdown-text: var(--menubar-dropdown-text);
+  --schola-workbench-menubar-dropdown-hover: var(--menubar-dropdown-hover);
+  --schola-workbench-menubar-dropdown-separator: var(--menubar-dropdown-separator);
+  --schola-workbench-menubar-dropdown-disabled: var(--menubar-dropdown-disabled);
+
+  --schola-content-preview-bg: var(--preview-bg);
+  --schola-content-preview-text: var(--preview-text);
+  --schola-content-codemirror-bg: var(--codemirror-bg);
+  --schola-content-codemirror-text: var(--codemirror-text);
+  --schola-content-artifact-bg: var(--artifact-bg);
+  --schola-content-ai-research-bg: var(--ai-research-bg);
+  --schola-content-settings-bg: var(--settings-bg);
+  --schola-content-graph-bg: var(--graph-bg);
+  --schola-content-filetree-bg: var(--filetree-bg);
+
+  --schola-color-success: var(--color-success);
+  --schola-color-success-bg: var(--color-success-bg);
+  --schola-color-warning: var(--color-warning);
+  --schola-color-warning-bg: var(--color-warning-bg);
+  --schola-color-error: var(--color-error);
+  --schola-color-error-bg: var(--color-error-bg);
+  --schola-color-info: var(--color-info);
+  --schola-color-info-bg: var(--color-info-bg);
+  --schola-color-disabled: var(--color-disabled);
+  --schola-color-disabled-bg: var(--color-disabled-bg);
+  --schola-color-privacy: var(--color-privacy);
+  --schola-color-privacy-bg: var(--color-privacy-bg);
+  --schola-color-draft: var(--color-draft);
+  --schola-color-draft-bg: var(--color-draft-bg);
+  --schola-color-source-backed: var(--color-source-backed);
+  --schola-color-source-backed-bg: var(--color-source-backed-bg);
+  --schola-color-model-inferred: var(--color-model-inferred);
+  --schola-color-model-inferred-bg: var(--color-model-inferred-bg);
+
+  --schola-graph-background: var(--graph-background);
+  --schola-graph-node-fill: var(--node-fill);
+  --schola-graph-node-selected: var(--node-selected);
+  --schola-graph-node-highlighted: var(--node-highlighted);
+  --schola-graph-edge-color: var(--edge-color);
+  --schola-graph-edge-highlighted: var(--edge-highlighted);
+  --schola-graph-relation-label: var(--relation-label);
+  --schola-graph-grid-color: var(--grid-color);
+  --schola-graph-3d-candidate-depth: var(--graph-3d-candidate-depth);
+}

@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: cobalt
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=cobalt] {
+  --preview-bg: #002240;
+  --preview-text: #c0d0e0;
+  --preview-heading: #ffc640;
+  --preview-heading-weight: 600;
+  --preview-muted: #6080a0;
+  --preview-link: #40b0ff;
+  --preview-link-hover: #80d0ff;
+  --preview-strong: #ffc640;
+  --preview-strong-weight: 600;
+  --preview-h1-border: #004070;
+  --preview-hr-border: #004070;
+  --preview-blockquote-bg: #40b0ff0f;
+  --preview-blockquote-border: #40b0ff;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #ffffff14;
+  --preview-code-text: #ffe080;
+  --preview-pre-bg: #001b35;
+  --preview-pre-border: #004070;
+  --preview-pre-text: #c0d0e0;
+  --preview-th-bg: #40b0ff1a;
+  --preview-td-border: #004070;
+  --preview-wikilink: #40b0ff;
+  --preview-wikilink-border: #40b0ff59;
+  --preview-wikilink-broken: #406080;
+  --preview-wikilink-broken-border: #40608059;
+  --preview-hljs-text: #c0d0e0;
+  --preview-hljs-keyword: #ffe080;
+  --preview-hljs-string: #80e090;
+  --preview-hljs-number: #ffa060;
+  --preview-hljs-comment: #406880;
+  --preview-hljs-title: #40b0ff;
+  --preview-hljs-attr: #ffd080;
+  --preview-hljs-builtin: #ffa060;
+  --preview-hljs-meta: #80e090;
+  --preview-hljs-symbol: #ffe080;
+  --preview-hljs-deletion: #ff6060;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.65;
+  --preview-font-family: "Helvetica Neue", Arial, "PingFang SC", sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=cobalt] .cm-editor { background: #002240; }
+.editor-cm[data-editor-theme=cobalt] .cm-editor .cm-content { caret-color: #ff9d00; }
+.editor-cm[data-editor-theme=cobalt] .cm-editor .cm-scroller { color: #fff; }
+.editor-cm[data-editor-theme=cobalt] .cm-editor .cm-activeLine { background: #003366; }
+.editor-cm[data-editor-theme=cobalt] .cm-editor .cm-selectionBackground { background: #004488!important; }
+.editor-cm[data-editor-theme=cobalt] .cm-editor .cm-cursor { border-left-color: #ff9d00; }

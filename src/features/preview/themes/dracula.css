@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: dracula
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=dracula] {
+  --preview-bg: #282a36;
+  --preview-text: #f8f8f2;
+  --preview-heading: #bd93f9;
+  --preview-heading-weight: 600;
+  --preview-muted: #6272a4;
+  --preview-link: #8be9fd;
+  --preview-link-hover: #a4f0fe;
+  --preview-strong: #ff79c6;
+  --preview-strong-weight: 700;
+  --preview-h1-border: #44475a;
+  --preview-hr-border: #44475a;
+  --preview-blockquote-bg: #6272a41a;
+  --preview-blockquote-border: #bd93f9;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #bd93f926;
+  --preview-code-text: #f1fa8c;
+  --preview-pre-bg: #21222c;
+  --preview-pre-border: #44475a;
+  --preview-pre-text: #f8f8f2;
+  --preview-th-bg: #6272a426;
+  --preview-td-border: #44475a;
+  --preview-wikilink: #8be9fd;
+  --preview-wikilink-border: #8be9fd59;
+  --preview-wikilink-broken: #6272a4;
+  --preview-wikilink-broken-border: #6272a459;
+  --preview-hljs-text: #f8f8f2;
+  --preview-hljs-keyword: #ff79c6;
+  --preview-hljs-string: #f1fa8c;
+  --preview-hljs-number: #bd93f9;
+  --preview-hljs-comment: #6272a4;
+  --preview-hljs-title: #50fa7b;
+  --preview-hljs-attr: #ffb86c;
+  --preview-hljs-builtin: #8be9fd;
+  --preview-hljs-meta: #8be9fd;
+  --preview-hljs-symbol: #ff79c6;
+  --preview-hljs-deletion: #f55;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.7;
+  --preview-font-family: Inter, "Fira Code", "PingFang SC", monospace;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=dracula] .cm-editor { background: #282a36; }
+.editor-cm[data-editor-theme=dracula] .cm-editor .cm-content { caret-color: #f8f8f2; }
+.editor-cm[data-editor-theme=dracula] .cm-editor .cm-scroller { color: #f8f8f2; }
+.editor-cm[data-editor-theme=dracula] .cm-editor .cm-activeLine { background: #313346; }
+.editor-cm[data-editor-theme=dracula] .cm-editor .cm-selectionBackground { background: #44475a!important; }
+.editor-cm[data-editor-theme=dracula] .cm-editor .cm-cursor { border-left-color: #f8f8f2; }

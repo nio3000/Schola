@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: lark
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=lark] {
+  --preview-bg: #1e1e2e;
+  --preview-text: #cdd6f4;
+  --preview-heading: #f5c2e7;
+  --preview-heading-weight: 600;
+  --preview-muted: #bac2de;
+  --preview-link: #89b4fa;
+  --preview-link-hover: #a6c8ff;
+  --preview-strong: #fab387;
+  --preview-strong-weight: 600;
+  --preview-h1-border: #313244;
+  --preview-hr-border: #313244;
+  --preview-blockquote-bg: #a6e3a10d;
+  --preview-blockquote-border: #a6e3a1;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #89b4fa1a;
+  --preview-code-text: #89dceb;
+  --preview-pre-bg: #181825;
+  --preview-pre-border: #313244;
+  --preview-pre-text: #cdd6f4;
+  --preview-th-bg: #89b4fa14;
+  --preview-td-border: #313244;
+  --preview-wikilink: #89b4fa;
+  --preview-wikilink-border: #89b4fa59;
+  --preview-wikilink-broken: #5f5f7f;
+  --preview-wikilink-broken-border: #5f5f7f59;
+  --preview-hljs-text: #cdd6f4;
+  --preview-hljs-keyword: #c792ea;
+  --preview-hljs-string: #c3e88d;
+  --preview-hljs-number: #f78c6c;
+  --preview-hljs-comment: #676e95;
+  --preview-hljs-title: #82aaff;
+  --preview-hljs-attr: #ffcb6b;
+  --preview-hljs-builtin: #f78c6c;
+  --preview-hljs-meta: #89ddff;
+  --preview-hljs-symbol: #c792ea;
+  --preview-hljs-deletion: #f07178;
+  --preview-font-size: .93rem;
+  --preview-line-height: 1.78;
+  --preview-font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=lark] .cm-editor { background: #fff; }
+.editor-cm[data-editor-theme=lark] .cm-editor .cm-content { caret-color: #1f93ff; }
+.editor-cm[data-editor-theme=lark] .cm-editor .cm-scroller { color: #1f2937; }
+.editor-cm[data-editor-theme=lark] .cm-editor .cm-activeLine { background: #f0f7ff; }
+.editor-cm[data-editor-theme=lark] .cm-editor .cm-selectionBackground { background: #d4e8ff!important; }
+.editor-cm[data-editor-theme=lark] .cm-editor .cm-cursor { border-left-color: #1f93ff; }

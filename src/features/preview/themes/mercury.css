@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: mercury
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=mercury] {
+  --preview-bg: #1c1c1c;
+  --preview-text: #a0a0a0;
+  --preview-heading: silver;
+  --preview-heading-weight: 500;
+  --preview-muted: #707070;
+  --preview-link: #6060a0;
+  --preview-link-hover: #8080c0;
+  --preview-strong: silver;
+  --preview-strong-weight: 600;
+  --preview-h1-border: #2c2c2c;
+  --preview-hr-border: #2c2c2c;
+  --preview-blockquote-bg: #ffffff05;
+  --preview-blockquote-border: #404040;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #ffffff0d;
+  --preview-code-text: #b0b0b0;
+  --preview-pre-bg: #242424;
+  --preview-pre-border: #2c2c2c;
+  --preview-pre-text: #a0a0a0;
+  --preview-th-bg: #ffffff08;
+  --preview-td-border: #2c2c2c;
+  --preview-wikilink: #6060a0;
+  --preview-wikilink-border: #6060a059;
+  --preview-wikilink-broken: #505050;
+  --preview-wikilink-broken-border: #50505059;
+  --preview-hljs-text: #a0a0a0;
+  --preview-hljs-keyword: #a070d0;
+  --preview-hljs-string: #80c060;
+  --preview-hljs-number: #d08050;
+  --preview-hljs-comment: #606060;
+  --preview-hljs-title: #6080d0;
+  --preview-hljs-attr: #d0a050;
+  --preview-hljs-builtin: #d08050;
+  --preview-hljs-meta: #60a0a0;
+  --preview-hljs-symbol: #a070d0;
+  --preview-hljs-deletion: #d05050;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.7;
+  --preview-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=mercury] .cm-editor { background: #1e2132; }
+.editor-cm[data-editor-theme=mercury] .cm-editor .cm-content { caret-color: #b7c9e2; }
+.editor-cm[data-editor-theme=mercury] .cm-editor .cm-scroller { color: #b7c9e2; }
+.editor-cm[data-editor-theme=mercury] .cm-editor .cm-activeLine { background: #282c40; }
+.editor-cm[data-editor-theme=mercury] .cm-editor .cm-selectionBackground { background: #3a4060!important; }
+.editor-cm[data-editor-theme=mercury] .cm-editor .cm-cursor { border-left-color: #b7c9e2; }

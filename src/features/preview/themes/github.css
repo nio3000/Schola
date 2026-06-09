@@ -1,0 +1,56 @@
+/*
+ * MWeb Theme: github
+ * Source: https://github.com/imageslr/mweb-themes (ISC License)
+ * Adapted for Schola — preview + editor combined
+ */
+
+/* ── Preview ── */
+.schola-markdown-preview[data-preview-theme=github] {
+  --preview-bg: #fff;
+  --preview-text: #24292e;
+  --preview-heading: #1a1a1a;
+  --preview-heading-weight: 600;
+  --preview-muted: #586069;
+  --preview-link: #0366d6;
+  --preview-link-hover: #0246a2;
+  --preview-strong: #1a1a1a;
+  --preview-strong-weight: 600;
+  --preview-h1-border: #e1e4e8;
+  --preview-hr-border: #e1e4e8;
+  --preview-blockquote-bg: transparent;
+  --preview-blockquote-border: #dfe2e5;
+  --preview-blockquote-radius: 0;
+  --preview-code-bg: #1b1f230d;
+  --preview-code-text: #24292e;
+  --preview-pre-bg: #f6f8fa;
+  --preview-pre-border: #e1e4e8;
+  --preview-pre-text: #24292e;
+  --preview-th-bg: #f6f8fa;
+  --preview-td-border: #dfe2e5;
+  --preview-wikilink: #0366d6;
+  --preview-wikilink-border: #0366d659;
+  --preview-wikilink-broken: #cb2431;
+  --preview-wikilink-broken-border: #cb243159;
+  --preview-hljs-text: #24292e;
+  --preview-hljs-keyword: #d73a49;
+  --preview-hljs-string: #032f62;
+  --preview-hljs-number: #005cc5;
+  --preview-hljs-comment: #6a737d;
+  --preview-hljs-title: #6f42c1;
+  --preview-hljs-attr: #e36209;
+  --preview-hljs-builtin: #005cc5;
+  --preview-hljs-meta: #22863a;
+  --preview-hljs-symbol: #6f42c1;
+  --preview-hljs-deletion: #d73a49;
+  --preview-font-size: .94rem;
+  --preview-line-height: 1.6;
+  --preview-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+/* ── Editor ── */
+.editor-cm[data-editor-theme=github] .cm-editor { background: #fff; }
+.editor-cm[data-editor-theme=github] .cm-editor .cm-content { caret-color: #0366d6; }
+.editor-cm[data-editor-theme=github] .cm-editor .cm-scroller { color: #24292e; }
+.editor-cm[data-editor-theme=github] .cm-editor .cm-activeLine { background: #f6f8fa; }
+.editor-cm[data-editor-theme=github] .cm-editor .cm-selectionBackground { background: #c8e1ff!important; }
+.editor-cm[data-editor-theme=github] .cm-editor .cm-cursor { border-left-color: #0366d6; }

@@ -1,0 +1,49 @@
+/* Component-level aliases built on top of the Phase 5 theme tokens. */
+:root {
+  --schola-shell-bg: var(--schola-workbench-editor-bg);
+  --schola-shell-border: var(--schola-workbench-border-color);
+  --schola-shell-resizer-bg: var(--schola-workbench-resizer-bg);
+
+  --schola-activitybar-background: var(--schola-workbench-activitybar-bg);
+  --schola-activitybar-item-hover-bg: var(--schola-workbench-activitybar-hover);
+  --schola-activitybar-item-active-bg: var(--schola-workbench-activitybar-active);
+  --schola-activitybar-item-active-text: var(--schola-content-codemirror-text);
+
+  --schola-sidebar-background: var(--schola-workbench-sidebar-bg);
+  --schola-sidebar-border: var(--schola-workbench-sidebar-border);
+  --schola-filetree-background: var(--schola-content-filetree-bg);
+
+  --schola-editor-background: var(--schola-workbench-editor-bg);
+  --schola-preview-background: var(--schola-content-preview-bg);
+  --schola-preview-foreground: var(--schola-content-preview-text);
+  --schola-codemirror-background: var(--schola-content-codemirror-bg);
+  --schola-codemirror-foreground: var(--schola-content-codemirror-text);
+
+  --schola-panel-background: var(--schola-workbench-panel-bg);
+  --schola-panel-border: var(--schola-workbench-panel-border);
+  --schola-statusbar-background: var(--schola-workbench-statusbar-bg);
+
+  --schola-menubar-background: var(--schola-workbench-menubar-bg);
+  --schola-menubar-border: var(--schola-workbench-menubar-border);
+  --schola-menubar-item-text: var(--schola-workbench-menubar-item-text);
+  --schola-menubar-item-hover-bg: var(--schola-workbench-menubar-item-hover-bg);
+  --schola-menubar-item-active-bg: var(--schola-workbench-menubar-item-active-bg);
+  --schola-menubar-dropdown-bg: var(--schola-workbench-menubar-dropdown-bg);
+  --schola-menubar-dropdown-border: var(--schola-workbench-menubar-dropdown-border);
+  --schola-menubar-dropdown-text: var(--schola-workbench-menubar-dropdown-text);
+  --schola-menubar-dropdown-hover: var(--schola-workbench-menubar-dropdown-hover);
+  --schola-menubar-dropdown-separator: var(--schola-workbench-menubar-dropdown-separator);
+  --schola-menubar-dropdown-disabled: var(--schola-workbench-menubar-dropdown-disabled);
+
+  --schola-artifact-panel-background: var(--schola-content-artifact-bg);
+  --schola-ai-research-background: var(--schola-content-ai-research-bg);
+  --schola-settings-background: var(--schola-content-settings-bg);
+  --schola-graph-canvas-background: var(--schola-graph-background);
+
+  --schola-component-focus-ring: var(--schola-color-info);
+  --schola-component-muted-bg: var(--schola-color-disabled-bg);
+  --schola-component-success-bg: var(--schola-color-success-bg);
+  --schola-component-warning-bg: var(--schola-color-warning-bg);
+  --schola-component-error-bg: var(--schola-color-error-bg);
+  --schola-component-info-bg: var(--schola-color-info-bg);
+}
