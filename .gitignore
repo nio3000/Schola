@@ -19,6 +19,7 @@ perf-vaults/
 npm
 src/styles - 副本.css
 tests/unit/1.md
+resources/runtimes/runtime-manifest.json
 
 tests/.schola/
 tests/456/
