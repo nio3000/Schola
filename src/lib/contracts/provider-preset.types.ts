@@ -10,10 +10,7 @@ import type { AIProviderKind } from './ai-provider.types';
 // ── Types ────────────────────────────────────────────
 
 /** Provider protocol / API compatibility layer. */
-export type ProviderProtocol =
-  | 'openai-compatible'
-  | 'anthropic-compatible'
-  | 'ollama';
+export type ProviderProtocol = 'openai-compatible' | 'anthropic-compatible' | 'ollama';
 
 /** Provider capability tags. */
 export type ProviderCapability =
@@ -26,15 +23,12 @@ export type ProviderCapability =
 
 /** Provider billing / access mode. */
 export type ProviderBillingMode =
-  | 'byok'           // Bring Your Own Key
-  | 'local-free'     // Local model, no key needed
+  | 'byok' // Bring Your Own Key
+  | 'local-free' // Local model, no key needed
   | 'schola-managed'; // Phase 5 only — NOT in Phase 4-1
 
 /** Provider authentication type. */
-export type ProviderAuthType =
-  | 'bearer'
-  | 'x-api-key'
-  | 'none';
+export type ProviderAuthType = 'bearer' | 'x-api-key' | 'none';
 
 /** Provider preset — configuration template, NOT a billing entity. */
 export interface ProviderPreset {
@@ -61,12 +55,13 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     displayName: 'OpenAI',
     protocol: 'openai-compatible',
     baseURL: 'https://api.openai.com/v1',
-    defaultModel: 'gpt-4o',
+    defaultModel: 'gpt5.5',
     authType: 'bearer',
     authHeader: 'Authorization',
     billingMode: 'byok',
     capabilities: ['chat', 'streaming', 'json-mode', 'function-calling', 'vision'],
-    description: 'OpenAI GPT-4o, GPT-4o-mini, etc. Requires your own API key from platform.openai.com.',
+    description:
+      'OpenAI GPT-4o, GPT-4o-mini, etc. Requires your own API key from platform.openai.com.',
   },
   {
     id: 'deepseek',
@@ -92,20 +87,8 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     authHeader: 'Authorization',
     billingMode: 'byok',
     capabilities: ['chat', 'streaming'],
-    description: 'OpenRouter — multi-provider gateway. Requires your own API key from openrouter.ai.',
-  },
-  {
-    id: 'custom-openai',
-    kind: 'openai',
-    displayName: 'Custom (OpenAI-compatible)',
-    protocol: 'openai-compatible',
-    baseURL: 'https://your-endpoint/v1',
-    defaultModel: '',
-    authType: 'bearer',
-    authHeader: 'Authorization',
-    billingMode: 'byok',
-    capabilities: ['chat', 'streaming'],
-    description: 'Any OpenAI-compatible endpoint (OneAPI, LiteLLM, local LLM server, etc.).',
+    description:
+      'OpenRouter — multi-provider gateway. Requires your own API key from openrouter.ai.',
   },
   {
     id: 'anthropic',
@@ -118,20 +101,75 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     authHeader: 'x-api-key',
     billingMode: 'byok',
     capabilities: ['chat', 'streaming', 'json-mode'],
-    description: 'Anthropic Claude — Sonnet, Opus, Haiku. Requires your own API key from console.anthropic.com.',
+    description:
+      'Anthropic Claude — Sonnet, Opus, Haiku. Requires your own API key from console.anthropic.com.',
   },
   {
-    id: 'gemini',
+    id: 'moonshot',
     kind: 'openai',
-    displayName: 'Gemini',
+    displayName: 'Kimi / Moonshot',
     protocol: 'openai-compatible',
-    baseURL: 'https://generativelanguage.googleapis.com/v1beta',
-    defaultModel: 'gemini-2.0-flash',
+    baseURL: 'https://api.moonshot.cn/v1',
+    defaultModel: 'moonshot-v1-8k',
     authType: 'bearer',
     authHeader: 'Authorization',
     billingMode: 'byok',
-    capabilities: ['chat', 'streaming', 'vision'],
-    description: 'Google Gemini. Requires your own API key from aistudio.google.com.',
+    capabilities: ['chat', 'streaming'],
+    description:
+      'Kimi / Moonshot open platform. Requires your own API key from platform.moonshot.cn.',
+  },
+  {
+    id: 'zhipu',
+    kind: 'openai',
+    displayName: 'Zhipu GLM',
+    protocol: 'openai-compatible',
+    baseURL: 'https://open.bigmodel.cn/api/paas/v4',
+    defaultModel: 'glm-4-flash',
+    authType: 'bearer',
+    authHeader: 'Authorization',
+    billingMode: 'byok',
+    capabilities: ['chat', 'streaming', 'function-calling'],
+    description: 'Zhipu GLM open platform. Requires your own API key from open.bigmodel.cn.',
+  },
+  {
+    id: 'qwen',
+    kind: 'openai',
+    displayName: 'Qwen',
+    protocol: 'openai-compatible',
+    baseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    defaultModel: 'qwen-plus',
+    authType: 'bearer',
+    authHeader: 'Authorization',
+    billingMode: 'byok',
+    capabilities: ['chat', 'streaming', 'function-calling'],
+    description:
+      'Alibaba Cloud DashScope Qwen OpenAI-compatible endpoint. Requires your own API key.',
+  },
+  {
+    id: 'mimo',
+    kind: 'openai',
+    displayName: 'Xiaomi MiMo',
+    protocol: 'openai-compatible',
+    baseURL: 'https://api.mimodou.com/v1',
+    defaultModel: 'mimo-vl-7b',
+    authType: 'bearer',
+    authHeader: 'Authorization',
+    billingMode: 'byok',
+    capabilities: ['chat', 'streaming'],
+    description: 'Xiaomi MiMo compatible provider preset. Requires your own API key.',
+  },
+  {
+    id: 'minimax',
+    kind: 'openai',
+    displayName: 'MiniMax',
+    protocol: 'openai-compatible',
+    baseURL: 'https://api.minimax.chat/v1',
+    defaultModel: 'MiniMax-Text-01',
+    authType: 'bearer',
+    authHeader: 'Authorization',
+    billingMode: 'byok',
+    capabilities: ['chat', 'streaming'],
+    description: 'MiniMax open platform. Requires your own API key from minimax.io.',
   },
   {
     id: 'ollama',
@@ -150,5 +188,5 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
 
 /** Lookup a provider preset by ID. */
 export function getProviderPreset(id: string): ProviderPreset | undefined {
-  return PROVIDER_PRESETS.find(p => p.id === id);
+  return PROVIDER_PRESETS.find((p) => p.id === id);
 }

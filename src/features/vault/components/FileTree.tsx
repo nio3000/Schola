@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import type { DragEvent, MouseEvent, ReactElement } from 'react';
 import type { FileEntry } from '../../../lib/contracts/vault.types';
 import { getFileIconDescriptorForPath, getFolderIconDescriptor } from '../../file-tree/FileIconMap';
+import { isNonMarkdownResource, getResourceIconChar, getResourceKindCss } from '../../resources/resourceDisplay';
+import { getResourceKindByPath } from '../../../lib/contracts/resource-classifier';
 
 export interface FileTreeProps {
   readonly entries: readonly FileEntry[];
@@ -94,13 +96,16 @@ function FileTreeNode({
   }
 
   const isSelected = selectedFile === entry.relativePath;
+  const isResource = isNonMarkdownResource(entry.relativePath);
 
   const handleDragStart = (event: DragEvent<HTMLButtonElement>): void => {
     event.dataTransfer.setData('application/x-schola-file', entry.relativePath);
     event.dataTransfer.setData('text/plain', entry.relativePath);
     event.dataTransfer.effectAllowed = 'link';
   };
-  const fileIcon = getFileIconDescriptorForPath(entry.relativePath);
+  const fileIcon = isResource ? null : getFileIconDescriptorForPath(entry.relativePath);
+  const resourceIcon = isResource ? getResourceIconChar(getResourceKindByPath(entry.relativePath)) : null;
+  const resourceCss = isResource ? getResourceKindCss(getResourceKindByPath(entry.relativePath)) : null;
 
   return (
     <li className="file-tree-node file-tree-node-file" data-testid={`file-node-${entry.name}`}>
@@ -117,13 +122,19 @@ function FileTreeNode({
         }}
         onDragStart={handleDragStart}
       >
-        <img
-          className="file-tree-icon file-tree-file-icon"
-          src={fileIcon.src}
-          alt=""
-          aria-hidden="true"
-          data-testid={`file-icon-${entry.name}`}
-        />
+        {isResource && resourceIcon ? (
+          <span className={`resource-icon-label ${resourceCss ?? ''}`} data-testid={`resource-icon-${entry.name}`}>
+            {resourceIcon}
+          </span>
+        ) : (
+          <img
+            className="file-tree-icon file-tree-file-icon"
+            src={fileIcon?.src ?? ''}
+            alt=""
+            aria-hidden="true"
+            data-testid={`file-icon-${entry.name}`}
+          />
+        )}
         <span className="file-tree-file-name">{entry.name}</span>
       </button>
     </li>

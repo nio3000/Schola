@@ -31,7 +31,7 @@ function renderPage(
     case 'general':
       return <GeneralPage />;
     case 'ai':
-      return <AIPage aiPrefs={state.aiPrefs} />;
+      return <AIPage aiPrefs={state.aiPrefs} presets={state.providerPresets} configs={state.providerConfigs} keyStatuses={state.keyStatuses} onRefresh={state.refreshData} />;
     case 'provider':
       return (
         <ProviderPage

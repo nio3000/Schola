@@ -197,7 +197,7 @@ function buildProviderReadiness(preset: ProviderPreset): ProviderReadiness {
 }
 
 function isKeyConfigured(status: MaskedSecretStatus | undefined): boolean {
-  return status?.status === 'configured';
+  return status?.status === 'configured' || status?.status === 'memory-only';
 }
 
 function buildModelList(

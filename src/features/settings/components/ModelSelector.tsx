@@ -24,13 +24,16 @@ export interface ModelSelectorProps {
 function getModelsForProvider(providerId: string): readonly string[] {
   // Static model lists per provider preset
   const models: Record<string, readonly string[]> = {
-    openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
+    openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4.1', 'o3-mini'],
     deepseek: ['deepseek-chat', 'deepseek-reasoner'],
-    openrouter: ['openai/gpt-4o', 'anthropic/claude-3.5-sonnet'],
-    anthropic: ['claude-3-5-sonnet-20241022', 'claude-3-haiku-20240307'],
-    gemini: ['gemini-2.0-flash', 'gemini-1.5-pro'],
-    ollama: ['llama3.2', 'mistral', 'codellama'],
-    custom: ['custom-model'],
+    openrouter: ['openai/gpt-4o', 'anthropic/claude-sonnet-4', 'google/gemini-2.5-flash'],
+    anthropic: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+    moonshot: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+    zhipu: ['glm-4-flash', 'glm-4-plus', 'glm-4-air'],
+    qwen: ['qwen-plus', 'qwen-max', 'qwen-turbo'],
+    mimo: ['mimo-vl-7b', 'mimo-7b'],
+    minimax: ['MiniMax-Text-01', 'abab6.5s-chat'],
+    ollama: ['llama3.2', 'mistral', 'codellama', 'qwen2.5'],
   };
   return models[providerId] ?? [];
 }
@@ -44,7 +47,12 @@ export function ModelSelector({
   onConnectProvider,
 }: ModelSelectorProps): ReactElement {
   const connectedSet = useMemo(
-    () => new Set(keyStatuses.filter((k) => k.status === 'configured').map((k) => k.providerId)),
+    () =>
+      new Set(
+        keyStatuses
+          .filter((k) => k.status === 'configured' || k.status === 'memory-only')
+          .map((k) => k.providerId),
+      ),
     [keyStatuses],
   );
 

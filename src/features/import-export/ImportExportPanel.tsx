@@ -24,6 +24,7 @@ import {
   openOriginalImportFile,
   revealOriginalImportFile,
 } from '../../lib/platform/schola-api';
+import { importResource } from '../../lib/platform/schola-api';
 import { useImportJob, type ImportUIState } from './useImportJob';
 import { useExportJob, type ExportUIState } from './useExportJob';
 
@@ -104,6 +105,20 @@ export function ImportExportPanel({ vaultId, selectedFile, importState: extImpor
     void revealExportArtifact(vaultId, relativePath);
   };
 
+  const handleImportResource = useCallback(async () => {
+    if (!vaultId) return;
+    try {
+      const result = await importResource({ vaultId });
+      if (result.ok) {
+        window.alert(`资源已导入：${result.resourceRelativePath}`);
+      } else {
+        window.alert(`导入失败：${result.error}`);
+      }
+    } catch {
+      window.alert('导入资源失败，请重试。');
+    }
+  }, [vaultId]);
+
   const handleOpenOriginalPdf = (originalFileRef: string) => {
     if (!vaultId) return;
     void openOriginalImportFile(vaultId, originalFileRef);
@@ -163,6 +178,16 @@ export function ImportExportPanel({ vaultId, selectedFile, importState: extImpor
           title="导出当前 Markdown"
         >
           📤 导出
+        </button>
+        <button
+          type="button"
+          className="ie-btn ie-btn-import-resource"
+          disabled={!canImport}
+          onClick={() => handleImportResource()}
+          data-testid="btn-import-resource"
+          title="导入资源文件（PDF/HTML/DOCX/图片等）"
+        >
+          📁 导入资源
         </button>
       </div>
 

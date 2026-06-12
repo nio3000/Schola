@@ -3,31 +3,34 @@ import type { ProviderReadiness } from '../../../lib/contracts/ai-research.types
 
 export interface ProviderReadinessCardProps {
   readonly provider: ProviderReadiness | null;
-  readonly model: string;
   readonly providers: readonly ProviderReadiness[];
   readonly onProviderChange: (providerId: string) => void;
-  readonly onModelChange: (model: string) => void;
   readonly onOpenDetails: () => void;
 }
 
 export function ProviderReadinessCard({
   provider,
-  model,
   providers,
   onProviderChange,
-  onModelChange,
   onOpenDetails,
 }: ProviderReadinessCardProps): ReactElement {
   const ready = provider?.ready ?? false;
 
   return (
-    <section className="workspace-ai-research-card" data-testid="ai-research-provider-readiness-card">
+    <section
+      className="workspace-ai-research-card"
+      data-testid="ai-research-provider-readiness-card"
+    >
       <div className="workspace-ai-research-card-header">
         <div>
           <p className="workspace-ai-research-kicker">提供者就绪度</p>
-          <h3 className="workspace-ai-research-card-title">{provider?.preset.displayName ?? '未配置提供者'}</h3>
+          <h3 className="workspace-ai-research-card-title">
+            {provider?.preset.displayName ?? '未配置提供者'}
+          </h3>
         </div>
-        <span className={`workspace-ai-research-status ${ready ? 'workspace-ai-research-status-ready' : 'workspace-ai-research-status-blocked'}`}>
+        <span
+          className={`workspace-ai-research-status ${ready ? 'workspace-ai-research-status-ready' : 'workspace-ai-research-status-blocked'}`}
+        >
           {ready ? '✓ 就绪' : '✗ 受阻'}
         </span>
       </div>
@@ -43,23 +46,6 @@ export function ProviderReadinessCard({
           {providers.map((item) => (
             <option key={item.providerId} value={item.providerId}>
               {item.preset.displayName}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="workspace-ai-research-field">
-        <span className="workspace-ai-research-label">模型</span>
-        <select
-          className="workspace-ai-research-select"
-          value={model}
-          onChange={(event) => onModelChange(event.target.value)}
-          disabled={!provider || provider.models.length === 0}
-        >
-          {provider?.models.length ? null : <option value={model}>{model}</option>}
-          {provider?.models.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.displayName}
             </option>
           ))}
         </select>

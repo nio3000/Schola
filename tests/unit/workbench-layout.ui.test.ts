@@ -143,7 +143,7 @@ describe('Phase 5-0 workbench layout UI', () => {
     assert.match(html, /data-testid="vault-panel"/);
   });
 
-  it('SideBar displays plugin, settings (Center), and AI placeholders', () => {
+  it('SideBar displays plugin, settings (Center), and no AI summary cards', () => {
     const plugins = renderToStaticMarkup(React.createElement(SideBar, makeSideBarProps('plugins')));
     const settings = renderToStaticMarkup(React.createElement(SideBar, makeSideBarProps('settings')));
     const ai = renderToStaticMarkup(React.createElement(SideBar, makeSideBarProps('ai')));
@@ -151,8 +151,8 @@ describe('Phase 5-0 workbench layout UI', () => {
     assert.match(plugins, /workspace-sidebar-plugins/);
     assert.match(plugins, /Plugin Ecosystem/);
     assert.match(settings, /workspace-sidebar-settings/);
-    // Phase 5-2: AI Research SideBar now shows AIResearchSidebarSummary instead of the retired preview shell.
-    assert.match(ai, /data-testid="ai-research-sidebar-summary"/);
+    assert.doesNotMatch(ai, /data-testid="ai-research-sidebar-summary"/);
+    assert.doesNotMatch(ai, /打开 AI Research Workbench/);
   });
 
   it('SettingsPlaceholder has no buttons or inputs and is read-only', () => {
@@ -203,7 +203,6 @@ describe('Phase 5-0 workbench layout UI', () => {
     const placeholders = [
       renderToStaticMarkup(React.createElement(SettingsPlaceholder)),
       renderToStaticMarkup(React.createElement(SideBar, makeSideBarProps('plugins'))),
-      renderToStaticMarkup(React.createElement(SideBar, makeSideBarProps('ai'))),
       renderToStaticMarkup(React.createElement(SideBar, makeSideBarProps('artifacts'))),
     ];
 

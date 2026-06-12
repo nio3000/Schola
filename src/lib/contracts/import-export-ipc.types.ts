@@ -59,3 +59,29 @@ export const PREVIEW_EXPORT_HTML_CHANNEL = 'preview:export-html';
 
 /** Export current preview as PDF via printToPDF. */
 export const PREVIEW_EXPORT_PDF_CHANNEL = 'preview:export-pdf';
+
+// ── Resource IPC (Phase 5-4A-IMP-3) ──
+
+/** Read PDF file bytes for the PDF viewer. PDF only, vault-relative path, 50MB limit. */
+export const RESOURCE_READ_PDF_CHANNEL = 'resource:read-pdf';
+
+/** Read HTML file text for the HTML viewer. .html/.htm only, vault-relative path, 5MB limit. */
+export const RESOURCE_READ_HTML_CHANNEL = 'resource:read-html';
+
+/** Import a file as a resource into the vault. Main opens file dialog. */
+export const RESOURCE_IMPORT_CHANNEL = 'resource:import';
+
+/** Read text/CSV file as UTF-8 for preview. .txt/.csv only, 2MB limit. */
+export const RESOURCE_READ_TEXT_PREVIEW_CHANNEL = 'resource:read-text-preview';
+
+/** Read DOCX file for paragraph-level preview. .docx only, 20MB limit. */
+export const RESOURCE_READ_DOCX_PREVIEW_CHANNEL = 'resource:read-docx-preview';
+
+/** Read XLSX file for sheet preview. .xlsx only, 20MB limit. */
+export const RESOURCE_READ_XLSX_PREVIEW_CHANNEL = 'resource:read-xlsx-preview';
+
+/** Read XLS file for legacy sheet preview. .xls only, 20MB limit. */
+export const RESOURCE_READ_XLS_PREVIEW_CHANNEL = 'resource:read-xls-preview';
+
+/** Read DOC file for legacy text preview. .doc only, 20MB limit. */
+export const RESOURCE_READ_DOC_PREVIEW_CHANNEL = 'resource:read-doc-preview';

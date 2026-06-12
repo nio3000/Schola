@@ -21,6 +21,8 @@ import type {
 import {
   createNotConfiguredStatus,
   createConfiguredStatus,
+  createMemoryOnlyStatus,
+  createUnavailableStatus,
   maskApiKey,
 } from '../../src/lib/contracts/settings.types';
 import { assertString } from '../lib/ipc-validation';
@@ -122,6 +124,17 @@ function deleteEncryptedKeyFile(providerId: string): void {
 
 /** Build MaskedSecretStatus from cache. */
 function buildStatus(providerId: string): MaskedSecretStatus {
+  // Check if encryption is available
+  if (!isEncryptionAvailable()) {
+    const decrypted = keyCache.get(providerId);
+    if (!decrypted) {
+      return createUnavailableStatus(providerId);
+    }
+    // Key exists in memory only, safeStorage unavailable
+    const maskedSuffix = maskApiKey(decrypted);
+    return createMemoryOnlyStatus(providerId, maskedSuffix);
+  }
+
   const decrypted = keyCache.get(providerId);
   const storageType = storageTypeCache.get(providerId);
 
@@ -130,10 +143,14 @@ function buildStatus(providerId: string): MaskedSecretStatus {
   }
 
   const maskedSuffix = maskApiKey(decrypted);
+  if (storageType === 'memory') {
+    // Key was stored but disk write failed — memory-only fallback
+    return createMemoryOnlyStatus(providerId, maskedSuffix);
+  }
   return createConfiguredStatus(
     providerId,
     maskedSuffix,
-    storageType ?? 'memory',
+    storageType ?? 'safeStorage',
   );
 }
 

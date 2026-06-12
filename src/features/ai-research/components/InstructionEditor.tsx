@@ -7,13 +7,18 @@ export interface InstructionEditorProps {
 
 export function InstructionEditor({ value, onChange }: InstructionEditorProps): ReactElement {
   return (
-    <section className="workspace-ai-research-card workspace-ai-research-instruction-card" data-testid="ai-research-instruction-editor">
+    <section
+      className="workspace-ai-research-card workspace-ai-research-instruction-card"
+      data-testid="ai-research-instruction-editor"
+    >
       <div className="workspace-ai-research-card-header">
         <div>
           <p className="workspace-ai-research-kicker">用户指令</p>
           <h3 className="workspace-ai-research-card-title">草稿生成说明</h3>
         </div>
-        <span className="workspace-ai-research-count-pill">{value.trim().length} 字</span>
+        <div className="workspace-ai-research-prompt-tools">
+          <span className="workspace-ai-research-count-pill">{value.trim().length} 字</span>
+        </div>
       </div>
       <textarea
         className="workspace-ai-research-textarea"

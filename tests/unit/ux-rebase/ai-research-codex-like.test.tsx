@@ -27,16 +27,17 @@ describe('ux-rebase ai-research-codex-like (P0)', () => {
     expect(content).toContain('InstructionEditor');
   });
 
-  it('UX-TB-P0-037: has ContextSourceSelector for project sources', () => {
+  it('UX-TB-P0-037: has explicit context column for project sources', () => {
     if (!existsSync(mainViewPath)) return;
     const content = readFileSync(mainViewPath, 'utf8');
-    expect(content).toContain('ContextSourceSelector');
+    expect(content).toContain('ai-research-context-column');
   });
 
-  it('UX-TB-P0-040: has ContextConfirmationModal for run guard', () => {
+  it('UX-TB-P0-040: has runtime model and skill selectors', () => {
     if (!existsSync(mainViewPath)) return;
     const content = readFileSync(mainViewPath, 'utf8');
-    expect(content).toContain('ContextConfirmationModal');
+    expect(content).toContain('ai-research-runtime-model-select');
+    expect(content).toContain('ai-research-skill-select');
   });
 
   it('UX-TB-P0-041: has ArtifactDraftPreview and EvidenceList for results', () => {

@@ -10,6 +10,10 @@ interface RegisteredVault {
 }
 
 const MARKDOWN_EXTENSIONS = new Set(['.md', '.markdown']);
+const RESOURCE_EXTENSIONS = new Set([
+  '.pdf', '.html', '.htm', '.docx', '.doc', '.pptx', '.xlsx', '.xls', '.csv', '.txt',
+  '.png', '.jpg', '.jpeg', '.webp', '.gif',
+]);
 const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules', ...SKIP_SCAN_DIRECTORIES]);
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp']);
 const IMAGE_MIME_TYPES: Record<string, string> = {
@@ -30,6 +34,11 @@ function createVaultId(rootPath: string): string {
 
 function isMarkdownFile(fileName: string): boolean {
   return MARKDOWN_EXTENSIONS.has(path.extname(fileName).toLowerCase());
+}
+
+function isScannedFile(fileName: string): boolean {
+  const ext = path.extname(fileName).toLowerCase();
+  return MARKDOWN_EXTENSIONS.has(ext) || RESOURCE_EXTENSIONS.has(ext);
 }
 
 function sortFileEntries(entries: FileEntry[]): FileEntry[] {
@@ -86,7 +95,7 @@ async function scanDirectory(rootPath: string, directoryPath: string): Promise<F
       continue;
     }
 
-    if (directoryEntry.isFile() && isMarkdownFile(directoryEntry.name)) {
+    if (directoryEntry.isFile() && isScannedFile(directoryEntry.name)) {
       const stat = await fs.stat(resolveVaultPath(rootPath, relativePath));
       fileEntries.push({
         id: relativePath,

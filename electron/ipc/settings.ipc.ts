@@ -11,7 +11,11 @@ import type {
   AIPreferences,
   ConfirmationLogEntry,
   ContextSendPolicy,
+  FetchProviderModelsInput,
+  FetchProviderModelsResult,
   MaskedSecretStatus,
+  TestProviderLatencyInput,
+  TestProviderLatencyResult,
 } from '../../src/lib/contracts/settings.types';
 import type { ProviderPreset } from '../../src/lib/contracts/provider-preset.types';
 import type { AIModelInfo } from '../../src/lib/contracts/ai-provider.types';
@@ -20,6 +24,8 @@ import {
   SETTINGS_GET_PROVIDER_CONFIGS_CHANNEL,
   SETTINGS_SET_PROVIDER_CONFIG_CHANNEL,
   SETTINGS_GET_PROVIDER_MODELS_CHANNEL,
+  SETTINGS_FETCH_PROVIDER_MODELS_CHANNEL,
+  SETTINGS_TEST_PROVIDER_LATENCY_CHANNEL,
   SETTINGS_GET_API_KEY_STATUS_CHANNEL,
   SETTINGS_SET_API_KEY_CHANNEL,
   SETTINGS_CLEAR_API_KEY_CHANNEL,
@@ -49,6 +55,7 @@ import {
   setProviderKey,
   deleteProviderKey,
 } from '../services/provider-key-store.service';
+import { fetchProviderModels, testProviderLatency } from '../services/model-gateway.service';
 import { assertString } from '../lib/ipc-validation';
 import { sanitizeIpcError } from '../lib/error-utils';
 
@@ -62,10 +69,23 @@ function aggregateModels(providerId: string): readonly AIModelInfo[] {
   const preset = getProviderPreset(providerId);
   const config = getProviderConfig(providerId);
 
+  if (!preset) {
+    return [];
+  }
+
   const models: AIModelInfo[] = [];
+  const defaultCandidate = 'gpt5.5';
+
+  models.push({
+    id: defaultCandidate,
+    providerId,
+    displayName: 'GPT-5.5',
+    contextWindow: 0,
+    capabilities: preset ? [...preset.capabilities] : [],
+  });
 
   // Preset default model
-  if (preset && preset.defaultModel) {
+  if (preset && preset.defaultModel && preset.defaultModel !== defaultCandidate) {
     models.push({
       id: preset.defaultModel,
       providerId,
@@ -91,27 +111,58 @@ function aggregateModels(providerId: string): readonly AIModelInfo[] {
     }
   }
 
+  if (config?.remoteModels) {
+    for (const model of config.remoteModels) {
+      if (models.some((m) => m.id === model.id)) continue;
+      models.push({
+        id: model.id,
+        providerId,
+        displayName: model.displayName,
+        contextWindow: model.contextWindow ?? 0,
+        capabilities: preset ? [...preset.capabilities] : [],
+      });
+    }
+  }
+
   return models;
+}
+
+function sanitizeFetchInput(input: unknown): FetchProviderModelsInput {
+  if (!input || typeof input !== 'object') {
+    throw new Error('INVALID_INPUT: input must be an object.');
+  }
+  const record = input as Partial<FetchProviderModelsInput>;
+  return {
+    providerId: assertString(record.providerId, 'providerId'),
+    baseUrl: assertString(record.baseUrl, 'baseUrl'),
+    apiKey: typeof record.apiKey === 'string' ? record.apiKey : undefined,
+  };
+}
+
+function sanitizeLatencyInput(input: unknown): TestProviderLatencyInput {
+  if (!input || typeof input !== 'object') {
+    throw new Error('INVALID_INPUT: input must be an object.');
+  }
+  const record = input as Partial<TestProviderLatencyInput>;
+  return {
+    providerId: assertString(record.providerId, 'providerId'),
+    baseUrl: assertString(record.baseUrl, 'baseUrl'),
+    apiKey: typeof record.apiKey === 'string' ? record.apiKey : undefined,
+  };
 }
 
 // ── Registration ──────────────────────────────
 
 export function registerSettingsIpc(): void {
   // ── Provider Presets ──
-  ipcMain.handle(
-    SETTINGS_GET_PROVIDER_PRESETS_CHANNEL,
-    (): readonly ProviderPreset[] => {
-      return PROVIDER_PRESETS;
-    },
-  );
+  ipcMain.handle(SETTINGS_GET_PROVIDER_PRESETS_CHANNEL, (): readonly ProviderPreset[] => {
+    return PROVIDER_PRESETS;
+  });
 
   // ── Provider Configs (no secrets) ──
-  ipcMain.handle(
-    SETTINGS_GET_PROVIDER_CONFIGS_CHANNEL,
-    (): readonly ProviderConfig[] => {
-      return getAllProviderConfigs();
-    },
-  );
+  ipcMain.handle(SETTINGS_GET_PROVIDER_CONFIGS_CHANNEL, (): readonly ProviderConfig[] => {
+    return getAllProviderConfigs();
+  });
 
   ipcMain.handle(
     SETTINGS_SET_PROVIDER_CONFIG_CHANNEL,
@@ -122,7 +173,13 @@ export function registerSettingsIpc(): void {
         return storeSetProviderConfig(id, {
           displayName: partial.displayName,
           customBaseURL: partial.customBaseURL,
+          baseUrl: partial.baseUrl,
+          selectedModel: partial.selectedModel,
           customModels: partial.customModels,
+          remoteModels: partial.remoteModels,
+          lastModelFetchAt: partial.lastModelFetchAt,
+          lastLatencyMs: partial.lastLatencyMs,
+          lastLatencyTestAt: partial.lastLatencyTestAt,
           enabled: partial.enabled,
         });
       } catch (err) {
@@ -142,6 +199,61 @@ export function registerSettingsIpc(): void {
       } catch {
         // For invalid providerId, return empty array rather than throwing
         return [];
+      }
+    },
+  );
+
+  ipcMain.handle(
+    SETTINGS_FETCH_PROVIDER_MODELS_CHANNEL,
+    async (_event, input: unknown): Promise<FetchProviderModelsResult> => {
+      try {
+        const safeInput = sanitizeFetchInput(input);
+        const result = await fetchProviderModels(safeInput);
+        if (result.ok) {
+          storeSetProviderConfig(result.providerId, {
+            baseUrl: safeInput.baseUrl,
+            customBaseURL: safeInput.baseUrl,
+            remoteModels: result.models,
+            lastModelFetchAt: result.fetchedAt,
+            enabled: true,
+          });
+        }
+        return result;
+      } catch (err) {
+        const msg = sanitizeIpcError(err);
+        return {
+          ok: false,
+          providerId: 'unknown',
+          error: msg,
+          errorCode: 'invalid_response',
+        };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    SETTINGS_TEST_PROVIDER_LATENCY_CHANNEL,
+    async (_event, input: unknown): Promise<TestProviderLatencyResult> => {
+      try {
+        const safeInput = sanitizeLatencyInput(input);
+        const result = await testProviderLatency(safeInput);
+        if (result.ok) {
+          storeSetProviderConfig(result.providerId, {
+            baseUrl: safeInput.baseUrl,
+            customBaseURL: safeInput.baseUrl,
+            lastLatencyMs: result.latencyMs,
+            lastLatencyTestAt: result.testedAt,
+          });
+        }
+        return result;
+      } catch (err) {
+        const msg = sanitizeIpcError(err);
+        return {
+          ok: false,
+          providerId: 'unknown',
+          error: msg,
+          errorCode: 'invalid_response',
+        };
       }
     },
   );
@@ -185,12 +297,9 @@ export function registerSettingsIpc(): void {
   );
 
   // ── Privacy Consent ──
-  ipcMain.handle(
-    SETTINGS_GET_PRIVACY_CONSENT_CHANNEL,
-    (): PrivacyConsentState => {
-      return getPrivacyConsent();
-    },
-  );
+  ipcMain.handle(SETTINGS_GET_PRIVACY_CONSENT_CHANNEL, (): PrivacyConsentState => {
+    return getPrivacyConsent();
+  });
 
   ipcMain.handle(
     SETTINGS_SET_PRIVACY_CONSENT_CHANNEL,
@@ -208,12 +317,9 @@ export function registerSettingsIpc(): void {
   );
 
   // ── Context Send Policy ──
-  ipcMain.handle(
-    SETTINGS_GET_CONTEXT_SEND_POLICY_CHANNEL,
-    (): ContextSendPolicy => {
-      return getContextSendPolicy();
-    },
-  );
+  ipcMain.handle(SETTINGS_GET_CONTEXT_SEND_POLICY_CHANNEL, (): ContextSendPolicy => {
+    return getContextSendPolicy();
+  });
 
   ipcMain.handle(
     SETTINGS_SET_CONTEXT_SEND_POLICY_CHANNEL,
@@ -229,29 +335,23 @@ export function registerSettingsIpc(): void {
   );
 
   // ── AI Preferences ──
-  ipcMain.handle(
-    SETTINGS_GET_AI_PREFERENCES_CHANNEL,
-    (): AIPreferences => {
-      return getAIPreferences();
-    },
-  );
+  ipcMain.handle(SETTINGS_GET_AI_PREFERENCES_CHANNEL, (): AIPreferences => {
+    return getAIPreferences();
+  });
 
-  ipcMain.handle(
-    SETTINGS_SET_AI_PREFERENCES_CHANNEL,
-    (_event, prefs: unknown): AIPreferences => {
-      try {
-        const partial = (prefs as Partial<AIPreferences>) ?? {};
-        return storeSetAIPreferences({
-          aiEnabled: partial.aiEnabled,
-          defaultProviderId: partial.defaultProviderId,
-          defaultModel: partial.defaultModel,
-        });
-      } catch (err) {
-        const msg = sanitizeIpcError(err);
-        throw new Error(`SETTINGS_ERROR: ${msg}`);
-      }
-    },
-  );
+  ipcMain.handle(SETTINGS_SET_AI_PREFERENCES_CHANNEL, (_event, prefs: unknown): AIPreferences => {
+    try {
+      const partial = (prefs as Partial<AIPreferences>) ?? {};
+      return storeSetAIPreferences({
+        aiEnabled: partial.aiEnabled,
+        defaultProviderId: partial.defaultProviderId,
+        defaultModel: partial.defaultModel,
+      });
+    } catch (err) {
+      const msg = sanitizeIpcError(err);
+      throw new Error(`SETTINGS_ERROR: ${msg}`);
+    }
+  });
 
   // ── Confirmation Log ──
   ipcMain.handle(
