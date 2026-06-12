@@ -70,14 +70,15 @@ async function fetchAllSettings(): Promise<{
     configs: configs.status === 'fulfilled' ? configs.value : [],
     keys: keys.status === 'fulfilled' ? keys.value : [],
     privacy: privacy.status === 'fulfilled' ? privacy.value : null,
-    ai: ai.status === 'fulfilled'
-      ? ai.value
-      : {
-          aiEnabled: false,
-          defaultProviderId: null,
-          defaultModel: null,
-          updatedAt: new Date().toISOString(),
-        },
+    ai:
+      ai.status === 'fulfilled'
+        ? ai.value
+        : {
+            aiEnabled: false,
+            defaultProviderId: null,
+            defaultModel: null,
+            updatedAt: new Date().toISOString(),
+          },
     log: log.status === 'fulfilled' ? log.value : [],
     allFailed,
   };
@@ -95,16 +96,13 @@ export function useSettings(): UseSettingsState {
     defaultModel: null,
     updatedAt: new Date().toISOString(),
   });
-  const [confirmationLog, setConfirmationLog] = useState<readonly ConfirmationLogEntry[]>(
-    [],
-  );
+  const [confirmationLog, setConfirmationLog] = useState<readonly ConfirmationLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   const refreshData = useCallback(() => {
     if (!mountedRef.current) return;
-    setLoading(true);
     setError(null);
     fetchAllSettings()
       .then((data) => {

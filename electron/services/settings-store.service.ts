@@ -41,7 +41,13 @@ interface ProviderConfigRow {
   provider_id: string;
   display_name: string | null;
   custom_base_url: string | null;
+  base_url: string | null;
+  selected_model: string | null;
   custom_models: string | null; // JSON array
+  remote_models: string | null; // JSON array
+  last_model_fetch_at: string | null;
+  last_latency_ms: number | null;
+  last_latency_test_at: string | null;
   enabled: number; // 0 | 1
   updated_at: string;
 }
@@ -83,7 +89,13 @@ const SCHEMA_STATEMENTS = [
     provider_id    TEXT PRIMARY KEY,
     display_name   TEXT,
     custom_base_url TEXT,
+    base_url       TEXT,
+    selected_model TEXT,
     custom_models  TEXT,
+    remote_models  TEXT,
+    last_model_fetch_at TEXT,
+    last_latency_ms INTEGER,
+    last_latency_test_at TEXT,
     enabled        INTEGER NOT NULL DEFAULT 0,
     updated_at     TEXT NOT NULL
   )`,
@@ -155,6 +167,8 @@ function getDb(): DatabaseSync {
 }
 
 function ensureDefaults(database: DatabaseSync): void {
+  ensureProviderConfigColumns(database);
+
   // global_privacy_consent default row
   const consentRow = database
     .prepare('SELECT id FROM global_privacy_consent WHERE id = 1')
@@ -176,9 +190,9 @@ function ensureDefaults(database: DatabaseSync): void {
   }
 
   // global_ai_preferences default row
-  const aiRow = database
-    .prepare('SELECT id FROM global_ai_preferences WHERE id = 1')
-    .get() as { id: number } | undefined;
+  const aiRow = database.prepare('SELECT id FROM global_ai_preferences WHERE id = 1').get() as
+    | { id: number }
+    | undefined;
   if (!aiRow) {
     const defaults = createDefaultAIPreferences();
     database
@@ -195,10 +209,47 @@ function ensureDefaults(database: DatabaseSync): void {
   }
 }
 
+function ensureProviderConfigColumns(database: DatabaseSync): void {
+  const columns = database.prepare('PRAGMA table_info(global_provider_configs)').all() as Array<{
+    name: string;
+  }>;
+  const existing = new Set(columns.map((column) => column.name));
+  const migrations: readonly { name: string; sql: string }[] = [
+    { name: 'base_url', sql: 'ALTER TABLE global_provider_configs ADD COLUMN base_url TEXT' },
+    {
+      name: 'selected_model',
+      sql: 'ALTER TABLE global_provider_configs ADD COLUMN selected_model TEXT',
+    },
+    {
+      name: 'remote_models',
+      sql: 'ALTER TABLE global_provider_configs ADD COLUMN remote_models TEXT',
+    },
+    {
+      name: 'last_model_fetch_at',
+      sql: 'ALTER TABLE global_provider_configs ADD COLUMN last_model_fetch_at TEXT',
+    },
+    {
+      name: 'last_latency_ms',
+      sql: 'ALTER TABLE global_provider_configs ADD COLUMN last_latency_ms INTEGER',
+    },
+    {
+      name: 'last_latency_test_at',
+      sql: 'ALTER TABLE global_provider_configs ADD COLUMN last_latency_test_at TEXT',
+    },
+  ];
+
+  for (const migration of migrations) {
+    if (!existing.has(migration.name)) {
+      database.exec(migration.sql);
+    }
+  }
+}
+
 // ── Row → Domain mapping ───────────────────────
 
 function rowToProviderConfig(row: ProviderConfigRow): ProviderConfig {
   let customModels: readonly string[] | undefined;
+  let remoteModels: ProviderConfig['remoteModels'];
   if (row.custom_models) {
     try {
       customModels = JSON.parse(row.custom_models) as string[];
@@ -206,12 +257,25 @@ function rowToProviderConfig(row: ProviderConfigRow): ProviderConfig {
       customModels = undefined;
     }
   }
+  if (row.remote_models) {
+    try {
+      remoteModels = JSON.parse(row.remote_models) as ProviderConfig['remoteModels'];
+    } catch {
+      remoteModels = undefined;
+    }
+  }
 
   return {
     providerId: row.provider_id,
     displayName: row.display_name ?? undefined,
     customBaseURL: row.custom_base_url ?? undefined,
+    baseUrl: row.base_url ?? row.custom_base_url ?? undefined,
+    selectedModel: row.selected_model ?? undefined,
     customModels,
+    remoteModels,
+    lastModelFetchAt: row.last_model_fetch_at ?? undefined,
+    lastLatencyMs: row.last_latency_ms ?? undefined,
+    lastLatencyTestAt: row.last_latency_test_at ?? undefined,
     enabled: row.enabled === 1,
     updatedAt: row.updated_at,
   };
@@ -276,7 +340,21 @@ export function getProviderConfig(providerId: string): ProviderConfig | null {
 
 export function setProviderConfig(
   providerId: string,
-  partial: Partial<Pick<ProviderConfig, 'displayName' | 'customBaseURL' | 'customModels' | 'enabled'>>,
+  partial: Partial<
+    Pick<
+      ProviderConfig,
+      | 'displayName'
+      | 'customBaseURL'
+      | 'baseUrl'
+      | 'selectedModel'
+      | 'customModels'
+      | 'remoteModels'
+      | 'lastModelFetchAt'
+      | 'lastLatencyMs'
+      | 'lastLatencyTestAt'
+      | 'enabled'
+    >
+  >,
 ): ProviderConfig {
   assertString(providerId, 'providerId');
 
@@ -293,47 +371,100 @@ export function setProviderConfig(
       partial.displayName !== undefined ? partial.displayName : existing.display_name;
     const customBaseURL =
       partial.customBaseURL !== undefined ? partial.customBaseURL : existing.custom_base_url;
+    const baseUrl = partial.baseUrl !== undefined ? partial.baseUrl : existing.base_url;
+    const selectedModel =
+      partial.selectedModel !== undefined ? partial.selectedModel : existing.selected_model;
     const customModels =
       partial.customModels !== undefined
         ? JSON.stringify(partial.customModels)
         : existing.custom_models;
-    const enabled =
-      partial.enabled !== undefined ? (partial.enabled ? 1 : 0) : existing.enabled;
+    const remoteModels =
+      partial.remoteModels !== undefined
+        ? JSON.stringify(partial.remoteModels)
+        : existing.remote_models;
+    const lastModelFetchAt =
+      partial.lastModelFetchAt !== undefined
+        ? partial.lastModelFetchAt
+        : existing.last_model_fetch_at;
+    const lastLatencyMs =
+      partial.lastLatencyMs !== undefined ? partial.lastLatencyMs : existing.last_latency_ms;
+    const lastLatencyTestAt =
+      partial.lastLatencyTestAt !== undefined
+        ? partial.lastLatencyTestAt
+        : existing.last_latency_test_at;
+    const enabled = partial.enabled !== undefined ? (partial.enabled ? 1 : 0) : existing.enabled;
 
     database
       .prepare(
         `UPDATE global_provider_configs
-         SET display_name = ?, custom_base_url = ?, custom_models = ?, enabled = ?, updated_at = ?
+         SET display_name = ?, custom_base_url = ?, base_url = ?, selected_model = ?,
+             custom_models = ?, remote_models = ?, last_model_fetch_at = ?,
+             last_latency_ms = ?, last_latency_test_at = ?, enabled = ?, updated_at = ?
          WHERE provider_id = ?`,
       )
-      .run(displayName, customBaseURL, customModels, enabled, now, providerId);
+      .run(
+        displayName,
+        customBaseURL,
+        baseUrl,
+        selectedModel,
+        customModels,
+        remoteModels,
+        lastModelFetchAt,
+        lastLatencyMs,
+        lastLatencyTestAt,
+        enabled,
+        now,
+        providerId,
+      );
   } else {
     const defaults = createDefaultProviderConfig(providerId);
     const displayName =
-      partial.displayName !== undefined ? partial.displayName : defaults.displayName ?? null;
+      partial.displayName !== undefined ? partial.displayName : (defaults.displayName ?? null);
     const customBaseURL =
-      partial.customBaseURL !== undefined ? partial.customBaseURL : defaults.customBaseURL ?? null;
+      partial.customBaseURL !== undefined
+        ? partial.customBaseURL
+        : (defaults.customBaseURL ?? null);
+    const baseUrl = partial.baseUrl !== undefined ? partial.baseUrl : customBaseURL;
+    const selectedModel =
+      partial.selectedModel !== undefined
+        ? partial.selectedModel
+        : (defaults.selectedModel ?? null);
     const customModels =
       partial.customModels !== undefined
         ? JSON.stringify(partial.customModels)
         : defaults.customModels
           ? JSON.stringify(defaults.customModels)
           : null;
+    const remoteModels =
+      partial.remoteModels !== undefined ? JSON.stringify(partial.remoteModels) : null;
+    const lastModelFetchAt = partial.lastModelFetchAt ?? null;
+    const lastLatencyMs = partial.lastLatencyMs ?? null;
+    const lastLatencyTestAt = partial.lastLatencyTestAt ?? null;
     const enabled =
-      partial.enabled !== undefined
-        ? partial.enabled
-          ? 1
-          : 0
-        : defaults.enabled
-          ? 1
-          : 0;
+      partial.enabled !== undefined ? (partial.enabled ? 1 : 0) : defaults.enabled ? 1 : 0;
 
     database
       .prepare(
-        `INSERT INTO global_provider_configs (provider_id, display_name, custom_base_url, custom_models, enabled, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO global_provider_configs
+           (provider_id, display_name, custom_base_url, base_url, selected_model,
+            custom_models, remote_models, last_model_fetch_at, last_latency_ms,
+            last_latency_test_at, enabled, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(providerId, displayName, customBaseURL, customModels, enabled, now);
+      .run(
+        providerId,
+        displayName,
+        customBaseURL,
+        baseUrl,
+        selectedModel,
+        customModels,
+        remoteModels,
+        lastModelFetchAt,
+        lastLatencyMs,
+        lastLatencyTestAt,
+        enabled,
+        now,
+      );
   }
 
   // Return the freshly persisted row
@@ -344,9 +475,9 @@ export function setProviderConfig(
 
 export function getPrivacyConsent(): PrivacyConsentState {
   const database = getDb();
-  const row = database
-    .prepare('SELECT * FROM global_privacy_consent WHERE id = 1')
-    .get() as PrivacyConsentRow | undefined;
+  const row = database.prepare('SELECT * FROM global_privacy_consent WHERE id = 1').get() as
+    | PrivacyConsentRow
+    | undefined;
   if (!row) {
     return createDefaultPrivacyConsentState();
   }
@@ -385,9 +516,7 @@ export function getContextSendPolicy(): ContextSendPolicy {
 export function setContextSendPolicy(policy: ContextSendPolicy): ContextSendPolicy {
   const validPolicies: readonly ContextSendPolicy[] = ['never', 'always-ask', 'always-allow-local'];
   if (!validPolicies.includes(policy)) {
-    throw new Error(
-      `INVALID_INPUT: policy must be one of: ${validPolicies.join(', ')}.`,
-    );
+    throw new Error(`INVALID_INPUT: policy must be one of: ${validPolicies.join(', ')}.`);
   }
 
   const current = getPrivacyConsent();
@@ -403,9 +532,9 @@ export function setContextSendPolicy(policy: ContextSendPolicy): ContextSendPoli
 
 export function getAIPreferences(): AIPreferences {
   const database = getDb();
-  const row = database
-    .prepare('SELECT * FROM global_ai_preferences WHERE id = 1')
-    .get() as AIPreferencesRow | undefined;
+  const row = database.prepare('SELECT * FROM global_ai_preferences WHERE id = 1').get() as
+    | AIPreferencesRow
+    | undefined;
   if (!row) {
     return createDefaultAIPreferences();
   }
@@ -426,9 +555,7 @@ export function setAIPreferences(
   const aiEnabled =
     partial.aiEnabled !== undefined ? (partial.aiEnabled ? 1 : 0) : current.aiEnabled ? 1 : 0;
   const defaultProviderId =
-    partial.defaultProviderId !== undefined
-      ? partial.defaultProviderId
-      : current.defaultProviderId;
+    partial.defaultProviderId !== undefined ? partial.defaultProviderId : current.defaultProviderId;
   const defaultModel =
     partial.defaultModel !== undefined ? partial.defaultModel : current.defaultModel;
 

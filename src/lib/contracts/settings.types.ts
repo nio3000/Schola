@@ -57,22 +57,20 @@ export const SETTINGS_PAGES: readonly SettingsPage[] = [
   },
   {
     id: 'ai',
-    label: 'AI',
+    label: 'AI 偏好',
     icon: '\uD83E\uDD16',
     phase: '5-1-interactive',
     sections: [
-      { id: 'general', label: '通用' },
-      { id: 'defaults', label: '默认设置' },
+      { id: 'general', label: '偏好' },
+      { id: 'defaults', label: '默认偏好' },
     ],
   },
   {
     id: 'provider',
-    label: '提供者',
+    label: '模型供应商',
     icon: '\uD83D\uDD0C',
     phase: '5-1-interactive',
-    sections: [
-      { id: 'list', label: '提供者列表' },
-    ],
+    sections: [{ id: 'list', label: '模型供应商列表' }],
   },
   {
     id: 'model',
@@ -123,10 +121,83 @@ export interface ProviderConfig {
   readonly providerId: string;
   readonly displayName?: string;
   readonly customBaseURL?: string;
+  readonly baseUrl?: string;
+  readonly selectedModel?: string;
   readonly customModels?: readonly string[];
+  readonly remoteModels?: readonly ProviderRemoteModel[];
+  readonly lastModelFetchAt?: string;
+  readonly lastLatencyMs?: number;
+  readonly lastLatencyTestAt?: string;
   readonly enabled: boolean;
   readonly updatedAt: string;
 }
+
+export interface ProviderRemoteModel {
+  readonly id: string;
+  readonly displayName: string;
+  readonly contextWindow?: number;
+  readonly ownedBy?: string;
+}
+
+export interface FetchProviderModelsInput {
+  readonly providerId: string;
+  readonly baseUrl: string;
+  readonly apiKey?: string;
+}
+
+export type FetchProviderModelsErrorCode =
+  | 'missing_base_url'
+  | 'missing_api_key'
+  | 'unauthorized'
+  | 'timeout'
+  | 'network_error'
+  | 'invalid_response'
+  | 'unsupported_provider';
+
+export type FetchProviderModelsResult =
+  | {
+      readonly ok: true;
+      readonly providerId: string;
+      readonly models: readonly ProviderRemoteModel[];
+      readonly fetchedAt: string;
+      readonly latencyMs: number;
+    }
+  | {
+      readonly ok: false;
+      readonly providerId: string;
+      readonly error: string;
+      readonly errorCode: FetchProviderModelsErrorCode;
+    };
+
+export interface TestProviderLatencyInput {
+  readonly providerId: string;
+  readonly baseUrl: string;
+  readonly apiKey?: string;
+}
+
+export type TestProviderLatencyErrorCode =
+  | 'missing_base_url'
+  | 'missing_api_key'
+  | 'unauthorized'
+  | 'timeout'
+  | 'network_error'
+  | 'invalid_response';
+
+export type TestProviderLatencyResult =
+  | {
+      readonly ok: true;
+      readonly providerId: string;
+      readonly latencyMs: number;
+      readonly testedAt: string;
+      readonly endpoint: 'models' | 'health' | 'root';
+    }
+  | {
+      readonly ok: false;
+      readonly providerId: string;
+      readonly latencyMs?: number;
+      readonly error: string;
+      readonly errorCode: TestProviderLatencyErrorCode;
+    };
 
 export function createDefaultProviderConfig(providerId: string): ProviderConfig {
   return {
@@ -140,9 +211,9 @@ export function createDefaultProviderConfig(providerId: string): ProviderConfig 
 // API Key Status (renderer-safe — NEVER contains raw key)
 // ═══════════════════════════════════════════════════════
 
-export type SecretStatus = 'not-configured' | 'configured' | 'invalid';
+export type SecretStatus = 'not-configured' | 'configured' | 'memory-only' | 'unavailable';
 
-export type SecretStorageType = 'safeStorage' | 'memory';
+export type SecretStorageType = 'safeStorage' | 'memory' | 'unavailable';
 
 export interface MaskedSecretStatus {
   readonly providerId: string;
@@ -150,11 +221,13 @@ export interface MaskedSecretStatus {
   /** Masked suffix like "sk-...abc4". NEVER the full key. Max 12 chars. */
   readonly maskedSuffix?: string;
   /** Storage backend used. Informational for UI display. */
-  readonly storageType?: SecretStorageType;
+  readonly storageType: SecretStorageType;
+  /** ISO timestamp of last update. */
+  readonly updatedAt?: string;
 }
 
 export function createNotConfiguredStatus(providerId: string): MaskedSecretStatus {
-  return { providerId, status: 'not-configured' };
+  return { providerId, status: 'not-configured', storageType: 'unavailable' };
 }
 
 export function createConfiguredStatus(
@@ -162,7 +235,30 @@ export function createConfiguredStatus(
   maskedSuffix: string,
   storageType: SecretStorageType,
 ): MaskedSecretStatus {
-  return { providerId, status: 'configured', maskedSuffix, storageType };
+  return {
+    providerId,
+    status: 'configured',
+    maskedSuffix,
+    storageType,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function createMemoryOnlyStatus(
+  providerId: string,
+  maskedSuffix: string,
+): MaskedSecretStatus {
+  return {
+    providerId,
+    status: 'memory-only',
+    maskedSuffix,
+    storageType: 'memory',
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export function createUnavailableStatus(providerId: string): MaskedSecretStatus {
+  return { providerId, status: 'unavailable', storageType: 'unavailable' };
 }
 
 /** Mask a key for renderer display: keep prefix and suffix, hide middle. */
@@ -177,10 +273,7 @@ export function maskApiKey(key: string): string {
 // Privacy Consent
 // ═══════════════════════════════════════════════════════
 
-export type ContextSendPolicy =
-  | 'never'
-  | 'always-ask'
-  | 'always-allow-local';
+export type ContextSendPolicy = 'never' | 'always-ask' | 'always-allow-local';
 
 export interface PrivacyConsentState {
   readonly privacyConsentAccepted: boolean;
@@ -202,9 +295,7 @@ export function createDefaultPrivacyConsentState(): PrivacyConsentState {
   };
 }
 
-export function createAcceptedPrivacyConsentState(
-  allowRemote: boolean,
-): PrivacyConsentState {
+export function createAcceptedPrivacyConsentState(allowRemote: boolean): PrivacyConsentState {
   return {
     privacyConsentAccepted: true,
     privacyConsentVersion: CURRENT_PRIVACY_CONSENT_VERSION,
@@ -280,6 +371,8 @@ export const SETTINGS_GET_PROVIDER_PRESETS_CHANNEL = 'settings:get-provider-pres
 export const SETTINGS_GET_PROVIDER_CONFIGS_CHANNEL = 'settings:get-provider-configs';
 export const SETTINGS_SET_PROVIDER_CONFIG_CHANNEL = 'settings:set-provider-config';
 export const SETTINGS_GET_PROVIDER_MODELS_CHANNEL = 'settings:get-provider-models';
+export const SETTINGS_FETCH_PROVIDER_MODELS_CHANNEL = 'settings:fetch-provider-models';
+export const SETTINGS_TEST_PROVIDER_LATENCY_CHANNEL = 'settings:test-provider-latency';
 
 // ── API Key ──
 export const SETTINGS_GET_API_KEY_STATUS_CHANNEL = 'settings:get-api-key-status';
@@ -316,8 +409,17 @@ export interface ScholaSettingsApi {
   // Provider
   readonly getProviderPresets: () => Promise<readonly ProviderPreset[]>;
   readonly getProviderConfigs: () => Promise<readonly ProviderConfig[]>;
-  readonly setProviderConfig: (providerId: string, config: Partial<ProviderConfig>) => Promise<ProviderConfig>;
+  readonly setProviderConfig: (
+    providerId: string,
+    config: Partial<ProviderConfig>,
+  ) => Promise<ProviderConfig>;
   readonly getProviderModels: (providerId: string) => Promise<readonly AIModelInfo[]>;
+  readonly fetchProviderModels: (
+    input: FetchProviderModelsInput,
+  ) => Promise<FetchProviderModelsResult>;
+  readonly testProviderLatency: (
+    input: TestProviderLatencyInput,
+  ) => Promise<TestProviderLatencyResult>;
 
   // API Key (NEVER returns raw key)
   readonly getApiKeyStatus: (providerId?: string) => Promise<readonly MaskedSecretStatus[]>;

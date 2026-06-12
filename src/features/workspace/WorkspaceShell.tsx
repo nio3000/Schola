@@ -34,6 +34,7 @@ import { EmptyEditor } from './EmptyEditor';
 import { FileTabs } from './FileTabs';
 import { EditorPanel } from '../editor/EditorPanel';
 import { PreviewPanel } from '../preview/PreviewPanel';
+import { ResourceViewerShell, shouldUseResourceViewer } from '../resources/ResourceViewerShell';
 import { GraphMainView } from '../graph/components/GraphMainView';
 import { AIResearchMainView } from '../ai-research/AIResearchMainView';
 import { SearchPanel } from '../search/components/SearchPanel';
@@ -476,6 +477,19 @@ export function WorkspaceShell({
   const renderFileView = (): ReactElement => {
     if (!hasOpenFile) return <EmptyEditor />;
 
+    // Phase 5-4A: route non-Markdown resources to the resource viewer
+    if (selectedFile && shouldUseResourceViewer(selectedFile)) {
+      return (
+        <div className="resource-viewer-container" data-testid="resource-viewer-container">
+          <ResourceViewerShell
+            vaultId={vaultId ?? ''}
+            relativePath={selectedFile}
+            fileName={selectedFile.split('/').pop() ?? selectedFile}
+          />
+        </div>
+      );
+    }
+
     const currentFileContent = fileContentPath === selectedFile ? fileContent : '';
     const contentErrorPane = fileContentError ? (
       <div className="workspace-file-error" data-testid="workspace-file-error">
@@ -550,8 +564,11 @@ export function WorkspaceShell({
   };
 
   // ── Vault open: full workspace ──
+  const showSidebar = activeActivity !== 'ai';
   const workspaceBodyStyle: CSSProperties = {
-    gridTemplateColumns: `44px ${sidebarWidth}px 1px minmax(0, 1fr)`,
+    gridTemplateColumns: showSidebar
+      ? `44px ${sidebarWidth}px 1px minmax(0, 1fr)`
+      : '44px minmax(0, 1fr)',
   };
 
   return (
@@ -581,29 +598,33 @@ export function WorkspaceShell({
         <ActivityBar activeActivity={activeActivity}
           onActivityChange={(a) => a === 'settings' ? setSettingsModalOpen(true) : setActiveActivity(a)} />
 
-        <SideBar activeActivity={activeActivity} width={sidebarWidth}
-          activeVault={activeVault} fileTree={fileTree} selectedFile={selectedFile}
-          status={vaultStatus} message={vaultMessage}
-          onOpenVault={onOpenVault} onOpenVaultByPath={onOpenVaultByPath} onCloseVault={onCloseVault}
-          onSelectFile={handleSelectFile}
-          onCreateNote={onCreateNote} onCreateFolder={onCreateFolder}
-          onRenameNote={onRenameNote} onRenameFolder={onRenameFolder}
-          onDeleteNote={onDeleteNote} onDeleteFolder={onDeleteFolder}
-          onMoveNote={onMoveNote} onMoveFolder={onMoveFolder}
-          graph={{ vaultId, isOpen: activeActivity === 'graph', selectedFile, selectedFiles: openFiles,
-            scope: graphScope, onOpenMainView: () => setActiveActivity('graph') }}
-          onOpenAIResearchWorkbench={() => setActiveActivity('ai')}
-          onOpenSettings={() => setSettingsModalOpen(true)} />
+        {showSidebar ? (
+          <>
+            <SideBar activeActivity={activeActivity} width={sidebarWidth}
+              activeVault={activeVault} fileTree={fileTree} selectedFile={selectedFile}
+              status={vaultStatus} message={vaultMessage}
+              onOpenVault={onOpenVault} onOpenVaultByPath={onOpenVaultByPath} onCloseVault={onCloseVault}
+              onSelectFile={handleSelectFile}
+              onCreateNote={onCreateNote} onCreateFolder={onCreateFolder}
+              onRenameNote={onRenameNote} onRenameFolder={onRenameFolder}
+              onDeleteNote={onDeleteNote} onDeleteFolder={onDeleteFolder}
+              onMoveNote={onMoveNote} onMoveFolder={onMoveFolder}
+              graph={{ vaultId, isOpen: activeActivity === 'graph', selectedFile, selectedFiles: openFiles,
+                scope: graphScope, onOpenMainView: () => setActiveActivity('graph') }}
+              onOpenAIResearchWorkbench={() => setActiveActivity('ai')}
+              onOpenSettings={() => setSettingsModalOpen(true)} />
 
-        <div
-          ref={sidebarResizeHandle.resizerRef}
-          className="sidebar-resizer workspace-resizer"
-          data-testid="sidebar-resizer"
-          role="separator"
-          aria-label="调整资源管理器宽度"
-          aria-orientation="vertical"
-          onPointerDown={sidebarResizeHandle.onPointerDown}
-        />
+            <div
+              ref={sidebarResizeHandle.resizerRef}
+              className="sidebar-resizer workspace-resizer"
+              data-testid="sidebar-resizer"
+              role="separator"
+              aria-label="调整资源管理器宽度"
+              aria-orientation="vertical"
+              onPointerDown={sidebarResizeHandle.onPointerDown}
+            />
+          </>
+        ) : null}
 
         <div className="workspace-editor-area" data-testid="editor-region">
           <div className="workspace-editor-header">

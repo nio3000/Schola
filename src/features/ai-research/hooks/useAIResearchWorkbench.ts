@@ -157,18 +157,39 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
   }, []);
 
   const selectedProvider = useMemo(
-    () => providerReadiness.find((provider) => provider.providerId === selectedProviderId) ?? providerReadiness[0] ?? null,
+    () =>
+      providerReadiness.find((provider) => provider.providerId === selectedProviderId) ??
+      providerReadiness[0] ??
+      null,
     [providerReadiness, selectedProviderId],
   );
 
   const model = selectedModel ?? selectedProvider?.models[0]?.id ?? '未选择模型';
 
+  const changeProvider = useCallback(
+    (providerId: string) => {
+      const provider = providerReadiness.find((item) => item.providerId === providerId);
+      setSelectedProviderId(providerId);
+      setSelectedModel(provider?.models[0]?.id ?? null);
+      setContextPackPreview(null);
+      setContextConfirmed(false);
+    },
+    [providerReadiness],
+  );
+
   const preflightResult = useMemo(
-    () => createPreflightResult({ provider: selectedProvider, contextPackPreview, contextConfirmed, privacyConsented }),
+    () =>
+      createPreflightResult({
+        provider: selectedProvider,
+        contextPackPreview,
+        contextConfirmed,
+        privacyConsented,
+      }),
     [contextConfirmed, contextPackPreview, privacyConsented, selectedProvider],
   );
 
-  const taskState: AIResearchTaskState = currentTask?.state ?? (stage === 'sources_selected' ? 'drafting' : 'idle');
+  const taskState: AIResearchTaskState =
+    currentTask?.state ?? (stage === 'sources_selected' ? 'drafting' : 'idle');
 
   const toggleSource = useCallback((source: ContextSourceRef) => {
     setSelectedSources((current) => {
@@ -299,7 +320,7 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
     model,
     setTaskType,
     setInstruction,
-    setSelectedProviderId,
+    changeProvider,
     setSelectedModel,
     setContextConfirmed,
     setPrivacyConsented,

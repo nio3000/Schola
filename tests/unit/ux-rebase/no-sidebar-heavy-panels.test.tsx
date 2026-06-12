@@ -20,7 +20,7 @@ describe('ux-rebase no-sidebar-heavy-panels (P0/P1)', () => {
     // This is a structural check — SideBar should not render ProviderPage or settings forms directly
     expect(content).not.toContain('ProviderPage');
     expect(content).not.toContain('AIResearchMainView');
-    expect(content).toContain('AIResearchSidebarSummary');
+    expect(content).not.toContain('AIResearchSidebarSummary');
   });
 
   it('Settings should be accessible via modal, not SideBar embed', () => {

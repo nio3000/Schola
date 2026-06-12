@@ -1,13 +1,10 @@
 /**
  * AI Research — Workbench Main View UI Test — Phase 5-2 P1.
  *
- * Verifies:
- * - AIResearchMainView renders three columns (left, center, right)
- * - Each column has expected components
- * - Stage labels are correct
- * - data-testid attributes are present
- * - Provider card context source selector
- * - Artifact draft preview in right column
+ * Verifies current R3 semantic three-column structure:
+ * - Left: context / references
+ * - Center: model response, runtime model/status/skill controls, task input
+ * - Right: artifact draft
  *
  * Test boundaries: 52-TB-UI-001 through 52-TB-UI-008
  */
@@ -78,95 +75,68 @@ function makeProps() {
 
 describe('AI Research — Workbench Main View', () => {
   it('52-TB-UI-001: renders without crashing (smoke test)', async () => {
-    const html = await renderAsync(
-      React.createElement(AIResearchMainView, makeProps()),
-    );
+    const html = await renderAsync(React.createElement(AIResearchMainView, makeProps()));
     assert.ok(html.length > 0, 'Must render HTML');
-    assert.ok(
-      html.includes('ai-research-main-view'),
-      'Must contain main view testid',
-    );
+    assert.ok(html.includes('ai-research-main-view'), 'Must contain main view testid');
   });
 
-  it('52-TB-UI-002: renders three-column layout', async () => {
-    const html = await renderAsync(
-      React.createElement(AIResearchMainView, makeProps()),
-    );
+  it('52-TB-UI-002: renders R3 three-column semantic layout', async () => {
+    const html = await renderAsync(React.createElement(AIResearchMainView, makeProps()));
 
-    // Three columns should be present
-    const leftColumn = html.includes('workspace-ai-research-column-left');
-    const centerColumn = html.includes('workspace-ai-research-column-center');
-    const rightColumn = html.includes('workspace-ai-research-column-right');
-
-    assert.ok(leftColumn, 'Must have left column');
-    assert.ok(centerColumn, 'Must have center column');
-    assert.ok(rightColumn, 'Must have right column');
+    assert.ok(html.includes('AI 研究工作台'), 'Must render AI Research header');
+    assert.ok(html.includes('ai-research-context-column'), 'Must render context column');
+    assert.ok(html.includes('ai-research-response-column'), 'Must render response column');
+    assert.ok(html.includes('ai-research-artifact-column'), 'Must render artifact column');
   });
 
-  it('52-TB-UI-003: left column contains ProviderReadinessCard', async () => {
-    const html = await renderAsync(
-      React.createElement(AIResearchMainView, makeProps()),
-    );
+  it('52-TB-UI-003: center column contains model response first', async () => {
+    const html = await renderAsync(React.createElement(AIResearchMainView, makeProps()));
 
-    assert.ok(
-      html.includes('提供者就绪度'),
-      'Left column must contain ProviderReadinessCard',
-    );
+    assert.ok(html.includes('模型回复'), 'Center column must contain model response area');
+    assert.ok(html.includes('尚未生成回复'), 'Response area must show empty state');
   });
 
-  it('52-TB-UI-004: left column contains ContextSourceSelector', async () => {
-    const html = await renderAsync(
-      React.createElement(AIResearchMainView, makeProps()),
-    );
+  it('52-TB-UI-004: left column contains context and references only', async () => {
+    const html = await renderAsync(React.createElement(AIResearchMainView, makeProps()));
 
-    assert.ok(
-      html.includes('知识库源文件'),
-      'Left column must contain ContextSourceSelector (知识库源文件)',
-    );
+    assert.ok(html.includes('上下文'), 'Left column must contain context title');
+    assert.ok(html.includes('上下文摘要'), 'Left column must contain context summary');
+    assert.ok(html.includes('任务状态'), 'Left column must contain task status');
+    assert.ok(html.includes('引用与推断'), 'Left column must contain reference list');
+    assert.ok(html.includes('尚未选择上下文资源'), 'Context column must show empty state');
   });
 
-  it('52-TB-UI-005: center column contains TaskTypeSelector', async () => {
-    const html = await renderAsync(
-      React.createElement(AIResearchMainView, makeProps()),
-    );
+  it('52-TB-UI-005: center column contains runtime model and skill controls', async () => {
+    const html = await renderAsync(React.createElement(AIResearchMainView, makeProps()));
 
-    assert.ok(
-      html.includes('任务类型'),
-      'Center column must contain TaskTypeSelector',
-    );
+    assert.ok(html.includes('ai-research-runtime-controls'), 'Must render runtime controls');
+    assert.ok(html.includes('ai-research-runtime-model-select'), 'Must render runtime model select');
+    assert.ok(html.includes('ai-research-skill-select'), 'Must render skill select');
   });
 
-  it('52-TB-UI-006: center column contains RunGuardPanel', async () => {
-    const html = await renderAsync(
-      React.createElement(AIResearchMainView, makeProps()),
-    );
+  it('52-TB-UI-006: center column contains task input below runtime controls', async () => {
+    const html = await renderAsync(React.createElement(AIResearchMainView, makeProps()));
 
-    assert.ok(
-      html.includes('ai-research-run-guard-panel'),
-      'Center column must contain RunGuardPanel',
-    );
+    assert.ok(html.includes('ai-research-task-input'), 'Must render task input area');
+    assert.ok(html.includes('ai-research-instruction-editor'), 'Must contain InstructionEditor');
   });
 
-  it('52-TB-UI-007: right column contains ArtifactDraftPreview', async () => {
-    const html = await renderAsync(
-      React.createElement(AIResearchMainView, makeProps()),
-    );
+  it('52-TB-UI-007: right column contains artifact draft only', async () => {
+    const html = await renderAsync(React.createElement(AIResearchMainView, makeProps()));
 
     assert.ok(
       html.includes('ai-research-artifact-draft-preview'),
-      'Right column must contain ArtifactDraftPreview',
+      'Right column must contain artifact draft preview',
     );
+    assert.ok(html.includes('尚未生成草稿'), 'Artifact column must show draft empty state');
   });
 
-  it('52-TB-UI-008: stage labels are displayed', async () => {
-    const html = await renderAsync(
-      React.createElement(AIResearchMainView, makeProps()),
-    );
+  it('52-TB-UI-008: workbench does not expose provider configuration details', async () => {
+    const html = await renderAsync(React.createElement(AIResearchMainView, makeProps()));
 
-    // Stage and task state labels should be present
-    assert.ok(
-      html.includes('阶段') || html.includes('待开始'),
-      'Must display stage label',
-    );
+    assert.equal(html.includes('API 请求地址'), false, 'Workbench must not show API URL field');
+    assert.equal(html.includes('API Key'), false, 'Workbench must not show API Key field');
+    assert.equal(html.includes('获取模型列表'), false, 'Workbench must not show model fetch action');
+    assert.equal(html.includes('管理与测速'), false, 'Workbench must not show latency action');
   });
 });

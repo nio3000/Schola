@@ -12,9 +12,13 @@ import type {
   AIPreferences,
   ConfirmationLogEntry,
   ContextSendPolicy,
+  FetchProviderModelsInput,
+  FetchProviderModelsResult,
   MaskedSecretStatus,
   PrivacyConsentState,
   ProviderConfig,
+  TestProviderLatencyInput,
+  TestProviderLatencyResult,
 } from '../contracts/settings.types';
 import type { AIModelInfo } from '../contracts/ai-provider.types';
 import type { ProviderPreset } from '../contracts/provider-preset.types';
@@ -53,9 +57,7 @@ export async function setProviderConfig(
   return getSettingsApi().setProviderConfig(providerId, config);
 }
 
-export async function getProviderModels(
-  providerId: string,
-): Promise<readonly AIModelInfo[]> {
+export async function getProviderModels(providerId: string): Promise<readonly AIModelInfo[]> {
   try {
     return getSettingsApi().getProviderModels(providerId);
   } catch {
@@ -63,11 +65,21 @@ export async function getProviderModels(
   }
 }
 
+export async function fetchProviderModels(
+  input: FetchProviderModelsInput,
+): Promise<FetchProviderModelsResult> {
+  return getSettingsApi().fetchProviderModels(input);
+}
+
+export async function testProviderLatency(
+  input: TestProviderLatencyInput,
+): Promise<TestProviderLatencyResult> {
+  return getSettingsApi().testProviderLatency(input);
+}
+
 // ── API Key ──
 
-export async function getApiKeyStatus(
-  providerId?: string,
-): Promise<readonly MaskedSecretStatus[]> {
+export async function getApiKeyStatus(providerId?: string): Promise<readonly MaskedSecretStatus[]> {
   try {
     return getSettingsApi().getApiKeyStatus(providerId);
   } catch {
@@ -75,16 +87,11 @@ export async function getApiKeyStatus(
   }
 }
 
-export async function setApiKey(
-  providerId: string,
-  key: string,
-): Promise<MaskedSecretStatus> {
+export async function setApiKey(providerId: string, key: string): Promise<MaskedSecretStatus> {
   return getSettingsApi().setApiKey(providerId, key);
 }
 
-export async function clearApiKey(
-  providerId: string,
-): Promise<MaskedSecretStatus> {
+export async function clearApiKey(providerId: string): Promise<MaskedSecretStatus> {
   return getSettingsApi().clearApiKey(providerId);
 }
 
@@ -114,9 +121,7 @@ export async function getContextSendPolicy(): Promise<ContextSendPolicy> {
   }
 }
 
-export async function setContextSendPolicy(
-  policy: ContextSendPolicy,
-): Promise<ContextSendPolicy> {
+export async function setContextSendPolicy(policy: ContextSendPolicy): Promise<ContextSendPolicy> {
   return getSettingsApi().setContextSendPolicy(policy);
 }
 
@@ -135,17 +140,13 @@ export async function getAIPreferences(): Promise<AIPreferences> {
   }
 }
 
-export async function setAIPreferences(
-  prefs: Partial<AIPreferences>,
-): Promise<AIPreferences> {
+export async function setAIPreferences(prefs: Partial<AIPreferences>): Promise<AIPreferences> {
   return getSettingsApi().setAIPreferences(prefs);
 }
 
 // ── Confirmation Log ──
 
-export async function getConfirmationLog(
-  limit?: number,
-): Promise<readonly ConfirmationLogEntry[]> {
+export async function getConfirmationLog(limit?: number): Promise<readonly ConfirmationLogEntry[]> {
   try {
     return getSettingsApi().getConfirmationLog(limit);
   } catch {

@@ -408,3 +408,46 @@ export async function previewExportHtml(input: PreviewExportInput): Promise<Prev
 export async function previewExportPdf(input: PreviewExportInput): Promise<PreviewExportResult> {
   return getPreviewExport().exportPdf(input);
 }
+
+// ── Resource API (Phase 5-4A-IMP-3) ──
+
+import type { ReadPdfResourceInput, ReadPdfResourceResult, ReadHtmlResourceInput, ReadHtmlResourceResult, ImportResourceInput, ImportResourceResult, ReadTextPreviewInput, ReadTextPreviewResult, ReadDocxPreviewInput, ReadDocxPreviewResult, ReadXlsxPreviewInput, ReadXlsxPreviewResult, ReadXlsPreviewInput, ReadXlsPreviewResult, ReadDocPreviewInput, ReadDocPreviewResult } from '../contracts/resource.types';
+
+function getResourceApi(): typeof window.schola.resource {
+  if (!window.schola?.resource) {
+    throw new Error('Resource API not available');
+  }
+  return window.schola.resource;
+}
+
+export async function readPdfResource(input: ReadPdfResourceInput): Promise<ReadPdfResourceResult> {
+  return getResourceApi().readPdf(input);
+}
+
+export async function readHtmlResource(input: ReadHtmlResourceInput): Promise<ReadHtmlResourceResult> {
+  return getResourceApi().readHtml(input);
+}
+
+export async function importResource(input: ImportResourceInput): Promise<ImportResourceResult> {
+  return getResourceApi().importResource(input);
+}
+
+export async function readTextPreview(input: ReadTextPreviewInput): Promise<ReadTextPreviewResult> {
+  return getResourceApi().readTextPreview(input);
+}
+
+export async function readDocxPreview(input: ReadDocxPreviewInput): Promise<ReadDocxPreviewResult> {
+  return getResourceApi().readDocxPreview(input);
+}
+
+export async function readXlsxPreview(input: ReadXlsxPreviewInput): Promise<ReadXlsxPreviewResult> {
+  return getResourceApi().readXlsxPreview(input);
+}
+
+export async function readXlsPreview(input: ReadXlsPreviewInput): Promise<ReadXlsPreviewResult> {
+  return getResourceApi().readXlsPreview(input);
+}
+
+export async function readDocPreview(input: ReadDocPreviewInput): Promise<ReadDocPreviewResult> {
+  return getResourceApi().readDocPreview(input);
+}

@@ -31,7 +31,11 @@ export function ProviderSettingsList({
   onConnect,
   onDisconnect,
 }: ProviderSettingsListProps): ReactElement {
-  const connectedSet = new Set(keyStatuses.filter((k) => k.status === 'configured').map((k) => k.providerId));
+  const connectedSet = new Set(
+    keyStatuses
+      .filter((k) => k.status === 'configured' || k.status === 'memory-only')
+      .map((k) => k.providerId),
+  );
 
   const connected = presets.filter((p) => connectedSet.has(p.id));
   const unconnected = presets.filter((p) => !connectedSet.has(p.id));

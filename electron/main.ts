@@ -13,6 +13,8 @@ import { registerRuntimePackIpc } from './ipc/runtime-pack.ipc';
 import { registerPreviewExportIpc } from './ipc/preview-export.ipc';
 import { registerSettingsIpc } from './ipc/settings.ipc';
 import { registerAIResearchIpc } from './ipc/ai-research.ipc';
+import { registerResourceReadIpc } from './ipc/resource-read.ipc';
+import { registerResourceImportIpc } from './ipc/resource-import.ipc';
 import { load as loadRuntimeStatusStore, reconcile as reconcileRuntimeStatus } from './services/runtime-pack/runtime-pack-status-store.service';
 // Phase 3-4-F0: probeAllReservedEngines disabled — Docling bundled runtime paused.
 // Uncomment when re-enabling reserved engine probes.
@@ -251,6 +253,8 @@ registerExportIpc();
   // Re-evaluate when Plugin Manager design phase begins (Phase 4-0-D).
   // registerRuntimePackIpc();
   registerPreviewExportIpc();
+  registerResourceReadIpc();
+  registerResourceImportIpc();
   registerSettingsIpc();
   registerAIResearchIpc();
 

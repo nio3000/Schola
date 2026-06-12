@@ -1,5 +1,4 @@
 import { type CSSProperties, type ReactElement } from 'react';
-import { AIResearchSidebarSummary } from '../ai-research/AIResearchSidebarSummary';
 import { GraphSidebarSummary } from '../graph/components/GraphSidebarSummary';
 import type { GraphScope } from '../graph/lib/graphTypes';
 import type { SearchMatch } from '../search/lib/searchIndex';
@@ -49,7 +48,14 @@ function SideBarHeader({ title, subtitle }: { readonly title: string; readonly s
   );
 }
 
-export function SideBar({ activeActivity, width, graph, onOpenAIResearchWorkbench, onOpenSettings, ...vaultPanelProps }: SideBarProps): ReactElement {
+export function SideBar({
+  activeActivity,
+  width,
+  graph,
+  onOpenAIResearchWorkbench: _onOpenAIResearchWorkbench,
+  onOpenSettings,
+  ...vaultPanelProps
+}: SideBarProps): ReactElement {
   const sidebarStyle: CSSProperties = {
     width,
     minWidth: SIDEBAR_MIN_WIDTH,
@@ -83,12 +89,8 @@ export function SideBar({ activeActivity, width, graph, onOpenAIResearchWorkbenc
       break;
     case 'ai':
       content = (
-        <div className="workspace-sidebar-fill workspace-sidebar-workbench">
-          <AIResearchSidebarSummary
-            fileTree={vaultPanelProps.fileTree}
-            selectedFile={vaultPanelProps.selectedFile}
-            onOpenWorkbench={onOpenAIResearchWorkbench}
-          />
+        <div className="workspace-sidebar-fill workspace-sidebar-workbench" data-testid="workspace-sidebar-ai-disabled">
+          <SideBarHeader title="AI Research" subtitle="AI Research 使用编辑区主视图，不再渲染外侧摘要栏。" />
         </div>
       );
       break;
