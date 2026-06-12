@@ -35,13 +35,7 @@ test.describe('Schola startup smoke (Phase 0 shell)', () => {
   });
 
   test('starts the secure Electron React shell', async () => {
-<<<<<<< Updated upstream
-    await expect(page).toHaveTitle(/Schola/);
-    await expect(page.getByRole('heading', { name: 'Schola' })).toBeVisible();
-    await expect(page.getByText('window.schola.app.getInfo')).toBeVisible();
-=======
     const p = page!;
->>>>>>> Stashed changes
 
     // Page title must contain "Schola" soon after launch.
     try {
@@ -94,9 +88,6 @@ test.describe('Schola startup smoke (Phase 0 shell)', () => {
       hasNodeProcessVersion: false,
     });
   });
-<<<<<<< Updated upstream
-});
-=======
 });
 
 // ─────────────────────────────────────────────
@@ -209,4 +200,3 @@ test.describe('Schola app theme system', () => {
     await expect(statusbar).toBeVisible();
   });
 });
->>>>>>> Stashed changes
