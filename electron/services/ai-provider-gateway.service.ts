@@ -1,5 +1,5 @@
 /**
- * AI Provider Gateway — Phase 5-2-IMP-3.
+ * AI Provider Gateway — Phase 5-2-IMP-3 + Phase 5-5-C-IMP-2.
  *
  * Minimal, controlled provider invocation gateway.
  *
@@ -20,10 +20,12 @@
  *
  * HTTP implementation:
  *   - OpenAI-compatible chat completions endpoint
+ *   - Ollama /api/chat endpoint
  *   - Uses Node.js built-in fetch (Electron 42+)
- *   - Configurable timeout (default 120s)
+ *   - Configurable timeout (default 120s for non-streaming)
  *   - NO provider SDK dependencies
  *   - NO streaming chunk persistence
+ *   - Anthropic: unsupported_provider gate (native API not implemented yet)
  */
 import type {
   AIArtifactDraft,
@@ -33,23 +35,30 @@ import type {
   AIResearchWarning,
 } from '../../src/lib/contracts/ai-research.types';
 import { AI_RESEARCH_TASK_LABELS } from '../../src/lib/contracts/ai-research.types';
+import type { ProviderPreset } from '../../src/lib/contracts/provider-preset.types';
 import { getProviderPreset } from '../../src/lib/contracts/provider-preset.types';
 import { sanitizeIpcError } from '../lib/error-utils';
 import { getProviderKey } from './provider-key-store.service';
-import {
-  buildInvocationMetadata,
-  buildPlaceholderArtifact,
-  storeTaskResult,
-  failTask,
-} from './ai-research-task.service';
+import { buildInvocationMetadata, storeTaskResult, failTask } from './ai-research-task.service';
+import { buildEvidenceRefsForContextPack } from './ai-research-context.service';
 
 // ── Constants ─────────────────────────────────────
 
-const DEFAULT_TIMEOUT_MS = 120_000; // 2 minutes
+const DEFAULT_TIMEOUT_MS = 120_000; // 2 minutes (non-streaming)
+const STREAMING_IDLE_TIMEOUT_MS = 10_000;
 const DEFAULT_MAX_TOKENS = 4096;
 const DEFAULT_TEMPERATURE = 0.3; // Low temperature for analytical tasks
 
+// Phase 5-5-C-IMP-2: Providers that return unsupported_provider.
+// Anthropic has a native messages API that is NOT implemented in IMP-2.
+const UNSUPPORTED_PROVIDER_IDS = new Set<string>(['anthropic']);
+
 // ── Types ─────────────────────────────────────────
+
+interface ChatMessage {
+  readonly role: 'system' | 'user' | 'assistant';
+  readonly content: string;
+}
 
 interface GatewayContext {
   readonly taskId: string;
@@ -58,6 +67,7 @@ interface GatewayContext {
   readonly taskType: AIResearchTaskType;
   readonly systemPrompt: string;
   readonly userPrompt: string;
+  readonly contextMessages: readonly ChatMessage[];
   readonly contextFileCount: number;
 }
 
@@ -75,6 +85,7 @@ interface GatewayResult {
  * This is the SINGLE entry point for all AI Research provider calls.
  * All preflight checks MUST have passed before reaching here.
  *
+ * @param contextMessages - ContextPack file contents as user messages (Phase 5-5-C-IMP-2).
  * @returns The artifact draft + metadata. Errors are thrown as AIInvocationError.
  */
 export async function executeProviderInvocation(
@@ -84,59 +95,69 @@ export async function executeProviderInvocation(
   taskType: AIResearchTaskType,
   systemPrompt: string,
   userPrompt: string,
+  contextMessages: readonly ChatMessage[],
   contextFileCount: number,
   signal?: AbortSignal,
+  sourcePackId = '',
+  skillId = 'default-skill',
 ): Promise<GatewayResult> {
   const startTime = Date.now();
 
-  // Step 8: Main process provider gateway (preflight already passed)
+  // Step 1: Provider preset validation
   const preset = getProviderPreset(providerId);
   if (!preset) {
-    throw buildInvocationError('PROVIDER_NOT_FOUND', `未找到提供者 "${providerId}" 的配置。`, false);
-  }
-
-  // Step 9: Error sanitize — API key retrieval (main process only)
-  let apiKey: string | null = null;
-  try {
-    apiKey = getProviderKey(providerId);
-  } catch {
     throw buildInvocationError(
-      'API_KEY_MISSING',
-      '无法获取 API Key。请在设置中重新配置。',
+      'PROVIDER_NOT_FOUND',
+      `未找到提供者 "${providerId}" 的配置。`,
       false,
     );
   }
 
-  if (apiKey == null) {
+  // Phase 5-5-C-IMP-2: Unsupported provider gate
+  if (UNSUPPORTED_PROVIDER_IDS.has(providerId)) {
     throw buildInvocationError(
-      'API_KEY_MISSING',
-      '无法获取 API Key。请在设置中重新配置。',
+      'unsupported_provider',
+      `提供者 "${preset.displayName}" 当前不支持。该提供者的原生 API 尚未实现，将在后续版本中支持。`,
       false,
     );
   }
 
-  // Build the request
-  const messages = buildMessages(systemPrompt, userPrompt);
+  // Step 2: API key retrieval (main process only)
+  const apiKey = resolveApiKey(providerId, preset);
 
-  // Execute HTTP call
+  // Step 3: Build messages (system + context + user)
+  const messages = buildMessages(systemPrompt, contextMessages, userPrompt);
+
+  // Step 4: Execute HTTP call based on protocol
   try {
-    const response = await sendChatCompletion(
-      preset.baseURL,
-      apiKey,
-      preset.authHeader,
-      model,
-      messages,
-      signal,
-    );
+    const content =
+      preset.protocol === 'ollama'
+        ? await sendOllamaChat(preset.baseURL, model, messages, signal)
+        : await sendChatCompletion(
+            preset.baseURL,
+            apiKey,
+            preset.authHeader,
+            model,
+            messages,
+            signal,
+          );
 
     const durationMs = Date.now() - startTime;
 
     // Build artifact from response
-    const content = sanitizeResponseContent(response);
-    const artifact = buildArtifactFromResponse(taskId, taskType, content);
+    const sanitized = sanitizeResponseContent(content);
+    const artifact = buildArtifactFromResponse({
+      taskId,
+      taskType,
+      content: sanitized,
+      sourcePackId,
+      providerId,
+      model,
+      skillId,
+    });
 
     // Build metadata (no raw prompt, no API key)
-    const approxTokens = estimateResponseTokens(content);
+    const approxTokens = estimateResponseTokens(sanitized);
     const metadata = buildInvocationMetadata(
       taskId,
       providerId,
@@ -145,14 +166,13 @@ export async function executeProviderInvocation(
       contextFileCount,
       approxTokens,
       durationMs,
-      false,
+      false, // streaming
     );
 
-    // Step 10: Metadata-only logging
+    // Metadata-only logging
     logInvocationMetadata(metadata);
 
-    const warnings = buildResponseWarnings(content, approxTokens);
-
+    const warnings = buildResponseWarnings(sanitized, approxTokens);
     return { artifact, metadata, warnings };
   } catch (err) {
     const durationMs = Date.now() - startTime;
@@ -160,7 +180,6 @@ export async function executeProviderInvocation(
 
     // Log sanitized error only
     logInvocationError(taskId, providerId, error.code, durationMs);
-
     throw error;
   }
 }
@@ -169,6 +188,8 @@ export async function executeProviderInvocation(
  * Execute a streaming provider invocation.
  * Streaming chunks are delivered via callback; NOT persisted.
  * The final result is the concatenation of all chunks.
+ *
+ * Phase 5-5-C-IMP-3 target. Not implemented in IMP-2.
  */
 export async function executeStreamingInvocation(
   taskId: string,
@@ -177,44 +198,60 @@ export async function executeStreamingInvocation(
   taskType: AIResearchTaskType,
   systemPrompt: string,
   userPrompt: string,
+  contextMessages: readonly ChatMessage[],
   contextFileCount: number,
-  onChunk: (chunk: string) => void,
+  onChunk: (chunk: string, index: number) => void,
   signal?: AbortSignal,
+  sourcePackId = '',
+  skillId = 'default-skill',
 ): Promise<GatewayResult> {
   const startTime = Date.now();
 
   const preset = getProviderPreset(providerId);
   if (!preset) {
-    throw buildInvocationError('PROVIDER_NOT_FOUND', `未找到提供者 "${providerId}" 的配置。`, false);
-  }
-
-  let apiKey: string | null = null;
-  try {
-    apiKey = getProviderKey(providerId);
-  } catch {
-    throw buildInvocationError('API_KEY_MISSING', '无法获取 API Key。', false);
-  }
-
-  if (apiKey == null) {
-    throw buildInvocationError('API_KEY_MISSING', '无法获取 API Key。', false);
-  }
-
-  const messages = buildMessages(systemPrompt, userPrompt);
-
-  try {
-    const content = await sendStreamingChatCompletion(
-      preset.baseURL,
-      apiKey,
-      preset.authHeader,
-      model,
-      messages,
-      onChunk,
-      signal,
+    throw buildInvocationError(
+      'PROVIDER_NOT_FOUND',
+      `未找到提供者 "${providerId}" 的配置。`,
+      false,
     );
+  }
+
+  if (UNSUPPORTED_PROVIDER_IDS.has(providerId)) {
+    throw buildInvocationError(
+      'unsupported_provider',
+      `提供者 "${preset.displayName}" 当前不支持。`,
+      false,
+    );
+  }
+
+  const apiKey = resolveApiKey(providerId, preset);
+  const messages = buildMessages(systemPrompt, contextMessages, userPrompt);
+
+  try {
+    const content =
+      preset.protocol === 'ollama'
+        ? await sendStreamingOllamaChat(preset.baseURL, model, messages, onChunk, signal)
+        : await sendStreamingChatCompletion(
+            preset.baseURL,
+            apiKey,
+            preset.authHeader,
+            model,
+            messages,
+            onChunk,
+            signal,
+          );
 
     const durationMs = Date.now() - startTime;
     const sanitized = sanitizeResponseContent(content);
-    const artifact = buildArtifactFromResponse(taskId, taskType, sanitized);
+    const artifact = buildArtifactFromResponse({
+      taskId,
+      taskType,
+      content: sanitized,
+      sourcePackId,
+      providerId,
+      model,
+      skillId,
+    });
     const approxTokens = estimateResponseTokens(sanitized);
     const metadata = buildInvocationMetadata(
       taskId,
@@ -228,7 +265,6 @@ export async function executeStreamingInvocation(
     );
 
     logInvocationMetadata(metadata);
-
     const warnings = buildResponseWarnings(sanitized, approxTokens);
     return { artifact, metadata, warnings };
   } catch (err) {
@@ -239,20 +275,85 @@ export async function executeStreamingInvocation(
   }
 }
 
-// ── HTTP Implementation ───────────────────────────
+// ── API Key Resolution ────────────────────────────
 
-interface ChatMessage {
-  readonly role: 'system' | 'user' | 'assistant';
-  readonly content: string;
+function resolveApiKey(providerId: string, preset: ProviderPreset): string {
+  // Ollama is local-free, no API key needed
+  if (preset.billingMode === 'local-free' || preset.protocol === 'ollama') {
+    return ''; // No key needed, empty string is safe
+  }
+
+  let apiKey: string | null = null;
+  try {
+    apiKey = getProviderKey(providerId);
+  } catch {
+    throw buildInvocationError('missing_api_key', '无法获取 API Key。请在设置中重新配置。', false);
+  }
+
+  if (apiKey == null || apiKey.length === 0) {
+    throw buildInvocationError(
+      'missing_api_key',
+      '未配置 API Key。请在设置中为该提供者配置密钥。',
+      false,
+    );
+  }
+
+  return apiKey;
 }
+
+// ── Message Assembly ──────────────────────────────
+
+/**
+ * Build context messages from ContextPack file contents.
+ * Each file becomes a user message with a relative path label.
+ * Only text-based files contribute content; binary/pdf files are skipped.
+ */
+export function buildContextMessages(contents: Map<string, string>): ChatMessage[] {
+  const messages: ChatMessage[] = [];
+  for (const [relativePath, content] of contents) {
+    if (content.trim().length === 0) continue;
+    messages.push({
+      role: 'user',
+      content: `[文件: ${relativePath}]\n\n${content}`,
+    });
+  }
+  return messages;
+}
+
+function buildMessages(
+  systemPrompt: string,
+  contextMessages: readonly ChatMessage[],
+  userPrompt: string,
+): ChatMessage[] {
+  const messages: ChatMessage[] = [];
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt });
+  }
+  for (const msg of contextMessages) {
+    messages.push(msg);
+  }
+  messages.push({ role: 'user', content: userPrompt });
+  return messages;
+}
+
+// ── HTTP Implementation: OpenAI-compatible ─────────
 
 interface MergedAbort {
   readonly signal: AbortSignal;
   clear(): void;
 }
 
-/** Combine an external AbortSignal with a timeout into a single AbortSignal. */
-function mergeAbortSignals(externalSignal: AbortSignal | undefined, timeoutMs: number): MergedAbort {
+interface StreamingBodyGuard {
+  readonly signal: AbortSignal;
+  reset(): void;
+  clear(): void;
+  isIdleTimeout(): boolean;
+}
+
+function mergeAbortSignals(
+  externalSignal: AbortSignal | undefined,
+  timeoutMs: number,
+): MergedAbort {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -281,15 +382,68 @@ function mergeAbortSignals(externalSignal: AbortSignal | undefined, timeoutMs: n
   };
 }
 
-function buildMessages(systemPrompt: string, userPrompt: string): ChatMessage[] {
-  const messages: ChatMessage[] = [];
-  if (systemPrompt) {
-    messages.push({ role: 'system', content: systemPrompt });
+function createStreamingBodyGuard(
+  externalSignal: AbortSignal | undefined,
+  timeoutMs: number,
+): StreamingBodyGuard {
+  const controller = new AbortController();
+  let idleTimedOut = false;
+  let timeoutId: NodeJS.Timeout | null = null;
+
+  const clearTimer = (): void => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+  };
+
+  const armTimer = (): void => {
+    clearTimer();
+    timeoutId = setTimeout(() => {
+      idleTimedOut = true;
+      controller.abort();
+    }, timeoutMs);
+  };
+
+  const onExternalAbort = (): void => {
+    clearTimer();
+    controller.abort();
+  };
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+    }
   }
-  messages.push({ role: 'user', content: userPrompt });
-  return messages;
+
+  armTimer();
+
+  return {
+    signal: controller.signal,
+    reset() {
+      if (controller.signal.aborted) return;
+      armTimer();
+    },
+    clear() {
+      clearTimer();
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', onExternalAbort);
+      }
+    },
+    isIdleTimeout() {
+      return idleTimedOut;
+    },
+  };
 }
 
+/**
+ * Send a non-streaming chat completion request to an OpenAI-compatible endpoint.
+ *
+ * Phase 5-5-C-IMP-2: stream=false, non-streaming only.
+ * Endpoint: {baseURL}/chat/completions (baseURL already includes /v1 for standard presets).
+ */
 async function sendChatCompletion(
   baseURL: string,
   apiKey: string,
@@ -298,22 +452,26 @@ async function sendChatCompletion(
   messages: ChatMessage[],
   externalSignal?: AbortSignal,
 ): Promise<string> {
-  const url = `${baseURL}/chat/completions`;
-  // Merge external cancellation signal with internal timeout
+  const url = normalizeOpenAIEndpoint(baseURL);
   const merged = mergeAbortSignals(externalSignal, DEFAULT_TIMEOUT_MS);
 
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (apiKey) {
+      headers[authHeader] = authHeader === 'X-API-Key' ? apiKey : `Bearer ${apiKey}`;
+    }
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        [authHeader]: `Bearer ${apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model,
         messages,
         max_tokens: DEFAULT_MAX_TOKENS,
         temperature: DEFAULT_TEMPERATURE,
+        stream: false,
       }),
       signal: merged.signal,
     });
@@ -321,15 +479,7 @@ async function sendChatCompletion(
     merged.clear();
 
     if (!response.ok) {
-      const status = response.status;
-      // NEVER include the response body in the error — it may contain API key info
-      if (status === 401 || status === 403) {
-        throw new Error('AUTH_ERROR: API Key 无效或权限不足。');
-      }
-      if (status === 429) {
-        throw new Error('RATE_LIMIT: 请求过于频繁，请稍后重试。');
-      }
-      throw new Error(`PROVIDER_ERROR: 提供者返回 HTTP ${status}。`);
+      throw mapHttpError(response.status);
     }
 
     const data = (await response.json()) as {
@@ -338,18 +488,92 @@ async function sendChatCompletion(
 
     const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error('PROVIDER_ERROR: 提供者返回了空响应。');
+      throw buildInvocationError('empty_response', '提供者返回了空响应。', true);
     }
 
     return content;
   } catch (err) {
     merged.clear();
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('CANCELLED: 请求已被取消或超时。');
+      throw buildInvocationError('timeout', '请求超时。提供者在规定时间内未响应。', true);
     }
-    throw err;
+    // Re-throw if already an AIInvocationError
+    if (isInvocationError(err)) throw err;
+    throw buildInvocationError('network_error', `网络请求失败: ${sanitizeIpcError(err)}`, true);
   }
 }
+
+/**
+ * Send a non-streaming chat request to an Ollama endpoint.
+ *
+ * Phase 5-5-C-IMP-2: Ollama /api/chat endpoint.
+ * No API key required.
+ */
+async function sendOllamaChat(
+  baseURL: string,
+  model: string,
+  messages: ChatMessage[],
+  externalSignal?: AbortSignal,
+): Promise<string> {
+  const url = `${baseURL.replace(/\/$/, '')}/api/chat`;
+  const merged = mergeAbortSignals(externalSignal, DEFAULT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: false,
+        options: {
+          temperature: DEFAULT_TEMPERATURE,
+          num_predict: DEFAULT_MAX_TOKENS,
+        },
+      }),
+      signal: merged.signal,
+    });
+
+    merged.clear();
+
+    if (!response.ok) {
+      throw mapHttpError(response.status);
+    }
+
+    const data = (await response.json()) as {
+      message?: { content?: string };
+    };
+
+    const content = data.message?.content;
+    if (!content) {
+      throw buildInvocationError('empty_response', 'Ollama 返回了空响应。', true);
+    }
+
+    return content;
+  } catch (err) {
+    merged.clear();
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw buildInvocationError('timeout', 'Ollama 请求超时。请确认本地服务正在运行。', true);
+    }
+    if (isInvocationError(err)) throw err;
+    throw buildInvocationError('network_error', `Ollama 请求失败: ${sanitizeIpcError(err)}`, true);
+  }
+}
+
+/**
+ * Normalize OpenAI-compatible endpoint URL.
+ * - If baseURL already ends with /chat/completions, use as-is.
+ * - If baseURL already ends with /v1, append /chat/completions.
+ * - Otherwise, append /v1/chat/completions (standard).
+ */
+function normalizeOpenAIEndpoint(baseURL: string): string {
+  const trimmed = baseURL.replace(/\/+$/, '');
+  if (trimmed.endsWith('/chat/completions')) return trimmed;
+  if (trimmed.endsWith('/v1')) return `${trimmed}/chat/completions`;
+  return `${trimmed}/v1/chat/completions`;
+}
+
+// ── HTTP Implementation: Streaming (IMP-3 target) ──
 
 async function sendStreamingChatCompletion(
   baseURL: string,
@@ -357,19 +581,23 @@ async function sendStreamingChatCompletion(
   authHeader: string,
   model: string,
   messages: ChatMessage[],
-  onChunk: (chunk: string) => void,
+  onChunk: (chunk: string, index: number) => void,
   externalSignal?: AbortSignal,
 ): Promise<string> {
-  const url = `${baseURL}/chat/completions`;
+  const url = normalizeOpenAIEndpoint(baseURL);
   const merged = mergeAbortSignals(externalSignal, DEFAULT_TIMEOUT_MS);
 
   try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (apiKey) {
+      headers[authHeader] = authHeader === 'X-API-Key' ? apiKey : `Bearer ${apiKey}`;
+    }
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        [authHeader]: `Bearer ${apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model,
         messages,
@@ -383,25 +611,32 @@ async function sendStreamingChatCompletion(
     merged.clear();
 
     if (!response.ok) {
-      const status = response.status;
-      if (status === 401 || status === 403) {
-        throw new Error('AUTH_ERROR: API Key 无效或权限不足。');
-      }
-      throw new Error(`PROVIDER_ERROR: 提供者返回 HTTP ${status}。`);
+      throw mapHttpError(response.status);
     }
 
     const reader = response.body?.getReader();
     if (!reader) {
-      throw new Error('PROVIDER_ERROR: 无法读取流式响应。');
+      throw buildInvocationError('invalid_response', '无法读取流式响应。', false);
     }
 
+    const bodyGuard = createStreamingBodyGuard(externalSignal, STREAMING_IDLE_TIMEOUT_MS);
     const decoder = new TextDecoder();
     let fullContent = '';
     let buffer = '';
+    let chunkIndex = 0;
 
     try {
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await Promise.race([
+          reader.read(),
+          new Promise<never>((_resolve, reject) => {
+            bodyGuard.signal.addEventListener(
+              'abort',
+              () => reject(new DOMException('Streaming idle timeout', 'AbortError')),
+              { once: true },
+            );
+          }),
+        ]);
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
@@ -417,12 +652,18 @@ async function sendStreamingChatCompletion(
 
           try {
             const parsed = JSON.parse(data) as {
-              choices?: Array<{ delta?: { content?: string } }>;
+              choices?: Array<{
+                delta?: { content?: string };
+                message?: { content?: string };
+              }>;
             };
-            const delta = parsed.choices?.[0]?.delta?.content;
+            const delta =
+              parsed.choices?.[0]?.delta?.content ?? parsed.choices?.[0]?.message?.content;
             if (delta) {
               fullContent += delta;
-              onChunk(delta);
+              onChunk(delta, chunkIndex);
+              chunkIndex += 1;
+              bodyGuard.reset();
             }
           } catch {
             // Skip malformed SSE chunks silently
@@ -430,70 +671,242 @@ async function sendStreamingChatCompletion(
         }
       }
     } finally {
+      bodyGuard.clear();
       reader.releaseLock();
     }
 
     if (!fullContent) {
-      throw new Error('PROVIDER_ERROR: 流式响应未返回任何内容。');
+      throw buildInvocationError('empty_response', '流式响应未返回任何内容。', true);
     }
 
     return fullContent;
   } catch (err) {
     merged.clear();
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new Error('CANCELLED: 流式请求已被取消或超时。');
+      throw buildInvocationError('timeout', '流式请求已被取消或超时。', true);
     }
-    throw err;
+    if (isInvocationError(err)) throw err;
+    throw buildInvocationError('network_error', `流式请求失败: ${sanitizeIpcError(err)}`, true);
   }
+}
+
+async function sendStreamingOllamaChat(
+  baseURL: string,
+  model: string,
+  messages: ChatMessage[],
+  onChunk: (chunk: string, index: number) => void,
+  externalSignal?: AbortSignal,
+): Promise<string> {
+  const url = `${baseURL.replace(/\/$/, '')}/api/chat`;
+  const merged = mergeAbortSignals(externalSignal, DEFAULT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: true,
+        options: {
+          temperature: DEFAULT_TEMPERATURE,
+          num_predict: DEFAULT_MAX_TOKENS,
+        },
+      }),
+      signal: merged.signal,
+    });
+
+    merged.clear();
+
+    if (!response.ok) {
+      throw mapHttpError(response.status);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw buildInvocationError('invalid_response', '无法读取 Ollama 流式响应。', false);
+    }
+
+    const bodyGuard = createStreamingBodyGuard(externalSignal, STREAMING_IDLE_TIMEOUT_MS);
+    const decoder = new TextDecoder();
+    let fullContent = '';
+    let buffer = '';
+    let chunkIndex = 0;
+
+    try {
+      while (true) {
+        const { done, value } = await Promise.race([
+          reader.read(),
+          new Promise<never>((_resolve, reject) => {
+            bodyGuard.signal.addEventListener(
+              'abort',
+              () => reject(new DOMException('Streaming idle timeout', 'AbortError')),
+              { once: true },
+            );
+          }),
+        ]);
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+
+          try {
+            const parsed = JSON.parse(trimmed) as {
+              message?: { content?: string };
+              done?: boolean;
+              error?: string;
+            };
+            if (parsed.error) {
+              throw buildInvocationError('provider_error', parsed.error, true);
+            }
+            const delta = parsed.message?.content;
+            if (delta) {
+              fullContent += delta;
+              onChunk(delta, chunkIndex);
+              chunkIndex += 1;
+              bodyGuard.reset();
+            }
+            if (parsed.done === true) {
+              break;
+            }
+          } catch (err) {
+            if (isInvocationError(err)) throw err;
+          }
+        }
+      }
+    } finally {
+      bodyGuard.clear();
+      reader.releaseLock();
+    }
+
+    if (!fullContent) {
+      throw buildInvocationError('empty_response', 'Ollama 流式响应未返回任何内容。', true);
+    }
+
+    return fullContent;
+  } catch (err) {
+    merged.clear();
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw buildInvocationError('timeout', 'Ollama 流式请求已被取消或超时。', true);
+    }
+    if (isInvocationError(err)) throw err;
+    throw buildInvocationError(
+      'network_error',
+      `Ollama 流式请求失败: ${sanitizeIpcError(err)}`,
+      true,
+    );
+  }
+}
+
+// ── HTTP Error Mapping ─────────────────────────────
+
+function mapHttpError(status: number): AIInvocationError {
+  switch (status) {
+    case 401:
+    case 403:
+      return buildInvocationError(
+        'unauthorized',
+        'API Key 无效或权限不足。请在设置中检查密钥配置。',
+        false,
+      );
+    case 429:
+      return buildInvocationError('rate_limited', '请求过于频繁，请稍后重试。', true);
+    case 400:
+      return buildInvocationError(
+        'invalid_response',
+        `提供者返回请求错误 (HTTP ${status})。`,
+        false,
+      );
+    case 500:
+    case 502:
+    case 503:
+      return buildInvocationError(
+        'provider_error',
+        `提供者服务异常 (HTTP ${status})，请稍后重试。`,
+        true,
+      );
+    default:
+      return buildInvocationError('provider_error', `提供者返回 HTTP ${status}。`, true);
+  }
+}
+
+function isInvocationError(err: unknown): err is AIInvocationError {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    'message' in err &&
+    'retryable' in err
+  );
 }
 
 // ── Response Processing ───────────────────────────
 
 function sanitizeResponseContent(rawContent: string): string {
-  // Always sanitize: remove any potential API-key-like patterns
-  // (belt-and-suspenders — the provider shouldn't return keys, but we sanitize anyway)
-  return rawContent;
+  // Strip potential API-key-like patterns (belt-and-suspenders)
+  return rawContent.replace(/sk-[a-zA-Z0-9]{20,}/g, '[REDACTED]');
 }
 
 function estimateResponseTokens(content: string): number {
-  // Conservative estimate: ~4 chars per token
   return Math.ceil(content.length / 4);
 }
 
-function buildArtifactFromResponse(
-  taskId: string,
-  taskType: AIResearchTaskType,
-  content: string,
-): AIArtifactDraft {
+function buildArtifactFromResponse(input: {
+  readonly taskId: string;
+  readonly taskType: AIResearchTaskType;
+  readonly content: string;
+  readonly sourcePackId: string;
+  readonly providerId: string;
+  readonly model: string;
+  readonly skillId: string;
+}): AIArtifactDraft {
+  const { taskId, taskType, content, sourcePackId, providerId, model, skillId } = input;
   const artifactId = `artifact-${taskId}`;
   const label = AI_RESEARCH_TASK_LABELS[taskType] ?? taskType;
+  const now = new Date().toISOString();
+  const evidence =
+    sourcePackId.length > 0
+      ? buildEvidenceRefsForContextPack(sourcePackId, content)
+      : [
+          {
+            id: `${artifactId}-ev-1`,
+            kind: 'model-inferred' as const,
+            label: '模型生成内容',
+            confidence: 'medium' as const,
+            note: '此内容由 AI 模型根据上下文生成，非文献原文直接引用。请逐条核实。',
+            modelInferredNote: '此内容由 AI 模型根据上下文生成，非文献原文直接引用。请逐条核实。',
+          },
+        ];
 
   return {
+    id: artifactId,
     artifactId,
     taskId,
     taskType,
     title: `${label} — 草稿`,
+    format: 'markdown',
     content,
-    evidence: [
-      {
-        id: `${artifactId}-ev-1`,
-        kind: 'model-inferred',
-        label: '模型生成内容',
-        modelInferredNote:
-          '此内容由 AI 模型根据上下文生成，非文献原文直接引用。请逐条核实。',
-      },
-    ],
+    evidence,
+    evidenceRefs: evidence,
     warnings: [],
     isDraft: true,
     reviewRequired: true,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
+    sourcePackId,
+    providerId,
+    model,
+    skillId,
+    status: 'draft',
   };
 }
 
-function buildResponseWarnings(
-  _content: string,
-  approxTokens: number,
-): AIResearchWarning[] {
+function buildResponseWarnings(_content: string, approxTokens: number): AIResearchWarning[] {
   const warnings: AIResearchWarning[] = [];
 
   if (approxTokens > DEFAULT_MAX_TOKENS * 0.9) {
@@ -521,12 +934,23 @@ function sanitizeAndBuildError(err: unknown, _durationMs: number): AIInvocationE
   const rawMessage = sanitizeIpcError(err);
   let sanitizedMessage = rawMessage;
 
-  // Sanitize: strip any potential key-like patterns from error messages
-  sanitizedMessage = sanitizedMessage.replace(/sk-[a-zA-Z0-9]{20,}/g, '[REDACTED]');
+  // Strip potential key-like patterns from error messages
+  sanitizedMessage = sanitizedMessage.replace(/sk-[a-zA-Z0-9_-]{20,}/g, '[REDACTED]');
   sanitizedMessage = sanitizedMessage.replace(/Bearer\s+[a-zA-Z0-9_-]+/g, 'Bearer [REDACTED]');
+  sanitizedMessage = sanitizedMessage.replace(/Authorization:\s*.+/gi, 'Authorization: [REDACTED]');
+  // Strip system absolute paths
+  sanitizedMessage = sanitizedMessage.replace(/[A-Za-z]:\\[^\s,;]*/g, '[PATH]');
+
+  if (isInvocationError(err)) {
+    return {
+      code: err.code,
+      message: sanitizedMessage,
+      retryable: err.retryable,
+    };
+  }
 
   return {
-    code: 'INVOCATION_FAILED',
+    code: 'provider_error',
     message: sanitizedMessage,
     retryable: true,
   };
@@ -536,8 +960,6 @@ function sanitizeAndBuildError(err: unknown, _durationMs: number): AIInvocationE
 
 function logInvocationMetadata(metadata: AIInvocationMetadata): void {
   // Metadata-only log entry. NO raw prompt, NO API key, NO file content.
-  // This is intentionally a no-op for Phase 5-2 (no persistent audit log yet).
-  // Phase 5-3+ may add structured logging.
 }
 
 function logInvocationError(
@@ -547,13 +969,13 @@ function logInvocationError(
   durationMs: number,
 ): void {
   // Sanitized error log. NEVER includes API key, raw prompt, or file content.
-  // Phase 5-3+ may add structured error logging.
 }
 
 // ── System Prompt Templates ───────────────────────
 
 /**
- * Build a system prompt for the given task type and context file list.
+ * Build a default system prompt for the given task type and context file list.
+ * Used as fallback when no skill promptTemplate is provided.
  */
 export function buildSystemPrompt(
   taskType: AIResearchTaskType,

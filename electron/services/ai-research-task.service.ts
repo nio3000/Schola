@@ -68,6 +68,7 @@ export function createTaskDraft(input: CreateTaskDraftInput): AIResearchTaskStat
       instruction: input.instruction,
       providerId: input.providerId,
       model: input.model,
+      skillPromptTemplate: input.skillPromptTemplate,
     };
 
     const status: AIResearchTaskStatus = {
@@ -141,14 +142,13 @@ export function cancelTask(input: CancelTaskInput): AIResearchTaskStatus {
 
     const cancellableStates: AIResearchTaskState[] = ['running', 'streaming'];
     if (!cancellableStates.includes(record.status.state)) {
-      throw new Error(
-        `TASK_STATE_INVALID: Cannot cancel task in state "${record.status.state}".`,
-      );
+      throw new Error(`TASK_STATE_INVALID: Cannot cancel task in state "${record.status.state}".`);
     }
 
     // Abort the in-flight HTTP request if one is active
     if (record.abortController) {
       record.abortController.abort();
+      record.abortController = undefined;
     }
 
     record.aborted = true;
@@ -163,6 +163,56 @@ export function cancelTask(input: CancelTaskInput): AIResearchTaskStatus {
   } catch (err) {
     throw createSanitizedServiceError(err);
   }
+}
+
+/**
+ * Mark a running task as streaming after the first provider content chunk.
+ */
+export function markTaskStreaming(taskId: string): AIResearchTaskStatus | null {
+  const record = tasks.get(taskId);
+  if (!record) return null;
+  if (record.aborted || record.status.state === 'cancelled') return record.status;
+  if (record.status.state !== 'running' && record.status.state !== 'streaming')
+    return record.status;
+
+  record.status = {
+    ...record.status,
+    state: 'streaming',
+  };
+  return record.status;
+}
+
+/**
+ * Remove the active AbortController for a finished task.
+ */
+export function clearTaskAbortController(taskId: string): void {
+  const record = tasks.get(taskId);
+  if (!record) return;
+  record.abortController = undefined;
+}
+
+/**
+ * Abort all pending AI Research provider requests.
+ * Called from app before-quit.
+ */
+export function abortAllPendingTasks(): void {
+  for (const record of tasks.values()) {
+    if (record.status.state !== 'running' && record.status.state !== 'streaming') continue;
+    record.abortController?.abort();
+    record.abortController = undefined;
+    record.aborted = true;
+    record.status = {
+      ...record.status,
+      state: 'cancelled',
+      completedAt: new Date().toISOString(),
+      message: '应用退出，任务已取消。',
+    };
+  }
+}
+
+export function isTaskCancelled(taskId: string): boolean {
+  const record = tasks.get(taskId);
+  return record?.aborted === true || record?.status.state === 'cancelled';
 }
 
 /**
@@ -227,7 +277,51 @@ export function clearTaskResult(taskId: string): void {
 export function discardArtifactDraft(artifactId: string): void {
   try {
     const id = assertString(artifactId, 'artifactId');
-    artifacts.delete(id);
+    const artifact = artifacts.get(id);
+    if (artifact) {
+      artifacts.set(id, {
+        ...artifact,
+        status: 'discarded',
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    throw createSanitizedServiceError(err);
+  }
+}
+
+export function getArtifactDraft(artifactId: string): AIArtifactDraft {
+  try {
+    const id = assertString(artifactId, 'artifactId');
+    const artifact = artifacts.get(id);
+    if (!artifact) {
+      throw new Error('ARTIFACT_NOT_FOUND: The artifact draft was not found.');
+    }
+    return artifact;
+  } catch (err) {
+    throw createSanitizedServiceError(err);
+  }
+}
+
+export function markArtifactDraftSaved(
+  artifactId: string,
+  relativePath: string,
+): AIArtifactDraft {
+  try {
+    const id = assertString(artifactId, 'artifactId');
+    const savedPath = assertString(relativePath, 'relativePath');
+    const artifact = artifacts.get(id);
+    if (!artifact) {
+      throw new Error('ARTIFACT_NOT_FOUND: The artifact draft was not found.');
+    }
+    const saved: AIArtifactDraft = {
+      ...artifact,
+      status: 'saved',
+      savedRelativePath: savedPath,
+      updatedAt: new Date().toISOString(),
+    };
+    artifacts.set(id, saved);
+    return saved;
   } catch (err) {
     throw createSanitizedServiceError(err);
   }
@@ -255,6 +349,8 @@ export function storeTaskResult(
   if (record.aborted || record.status.state === 'cancelled') {
     return;
   }
+
+  record.abortController = undefined;
 
   artifacts.set(artifact.artifactId, artifact);
 
@@ -287,6 +383,8 @@ export function failTask(taskId: string, error: AIInvocationError): void {
   if (record.aborted || record.status.state === 'cancelled') {
     return;
   }
+
+  record.abortController = undefined;
 
   record.status = {
     ...record.status,
@@ -341,12 +439,15 @@ export function buildPlaceholderArtifact(
   ];
 
   return {
+    id: artifactId,
     artifactId,
     taskId,
     taskType,
     title: `${label} — 草稿预览`,
+    format: 'markdown',
     content: `# ${label}\n\n> **草稿预览** — 此内容为模型生成，需人工审核。\n\n分析结果将在此处显示。`,
     evidence,
+    evidenceRefs: evidence,
     warnings: [
       {
         code: 'draft_placeholder',
@@ -357,6 +458,12 @@ export function buildPlaceholderArtifact(
     isDraft: true,
     reviewRequired: true,
     createdAt: now,
+    updatedAt: now,
+    sourcePackId: 'placeholder-context-pack',
+    providerId: 'placeholder-provider',
+    model: 'placeholder-model',
+    skillId: 'placeholder-skill',
+    status: 'draft',
   };
 }
 
@@ -400,10 +507,7 @@ function assertCreateTaskDraftInput(input: CreateTaskDraftInput): void {
   assertString(input.model, 'model');
 }
 
-function createFailedMetadata(
-  record: TaskRecord,
-  error: AIInvocationError,
-): AIInvocationMetadata {
+function createFailedMetadata(record: TaskRecord, error: AIInvocationError): AIInvocationMetadata {
   return {
     taskId: record.status.taskId,
     providerId: record.request.providerId,

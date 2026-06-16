@@ -193,6 +193,7 @@ import type {
   AI_RESEARCH_GET_PROVIDER_READINESS_CHANNEL as AI_RESEARCH_GET_PROVIDER_READINESS_CHANNEL_TYPE,
   AI_RESEARCH_BUILD_CONTEXT_PACK_CHANNEL as AI_RESEARCH_BUILD_CONTEXT_PACK_CHANNEL_TYPE,
   AI_RESEARCH_PREVIEW_CONTEXT_PACK_CHANNEL as AI_RESEARCH_PREVIEW_CONTEXT_PACK_CHANNEL_TYPE,
+  AI_RESEARCH_CONFIRM_CONTEXT_PACK_CHANNEL as AI_RESEARCH_CONFIRM_CONTEXT_PACK_CHANNEL_TYPE,
   AI_RESEARCH_CREATE_TASK_DRAFT_CHANNEL as AI_RESEARCH_CREATE_TASK_DRAFT_CHANNEL_TYPE,
   AI_RESEARCH_RUN_CONFIRMED_TASK_CHANNEL as AI_RESEARCH_RUN_CONFIRMED_TASK_CHANNEL_TYPE,
   AI_RESEARCH_CANCEL_TASK_CHANNEL as AI_RESEARCH_CANCEL_TASK_CHANNEL_TYPE,
@@ -200,14 +201,24 @@ import type {
   AI_RESEARCH_GET_TASK_RESULT_CHANNEL as AI_RESEARCH_GET_TASK_RESULT_CHANNEL_TYPE,
   AI_RESEARCH_CLEAR_TASK_RESULT_CHANNEL as AI_RESEARCH_CLEAR_TASK_RESULT_CHANNEL_TYPE,
   AI_RESEARCH_DISCARD_ARTIFACT_CHANNEL as AI_RESEARCH_DISCARD_ARTIFACT_CHANNEL_TYPE,
+  AI_RESEARCH_SAVE_ARTIFACT_DRAFT_CHANNEL as AI_RESEARCH_SAVE_ARTIFACT_DRAFT_CHANNEL_TYPE,
+  AI_RESEARCH_TASK_CHUNK_EVENT as AI_RESEARCH_TASK_CHUNK_EVENT_TYPE,
+  AI_RESEARCH_TASK_DONE_EVENT as AI_RESEARCH_TASK_DONE_EVENT_TYPE,
+  AI_RESEARCH_TASK_ERROR_EVENT as AI_RESEARCH_TASK_ERROR_EVENT_TYPE,
+  ChatChunk,
   AIResearchTaskStatus,
   AIResearchTaskResult,
   BuildContextPackInput,
   CancelTaskInput,
+  ConfirmContextPackInput,
+  ContextConfirmationSnapshot,
   CreateTaskDraftInput,
   ProviderReadiness,
   ResearchContextPreview,
   RunConfirmedTaskInput,
+  SaveArtifactDraftInput,
+  SaveArtifactDraftResult,
+  SubscribeTaskCallbacks,
 } from '../src/lib/contracts/ai-research.types';
 import type {
   RUNTIME_LIST_PACKS_CHANNEL as RUNTIME_LIST_PACKS_CHANNEL_TYPE,
@@ -285,6 +296,8 @@ const AI_RESEARCH_BUILD_CONTEXT_PACK_CHANNEL: typeof AI_RESEARCH_BUILD_CONTEXT_P
   'ai-research:build-context-pack';
 const AI_RESEARCH_PREVIEW_CONTEXT_PACK_CHANNEL: typeof AI_RESEARCH_PREVIEW_CONTEXT_PACK_CHANNEL_TYPE =
   'ai-research:preview-context-pack';
+const AI_RESEARCH_CONFIRM_CONTEXT_PACK_CHANNEL: typeof AI_RESEARCH_CONFIRM_CONTEXT_PACK_CHANNEL_TYPE =
+  'ai-research:confirm-context-pack';
 const AI_RESEARCH_CREATE_TASK_DRAFT_CHANNEL: typeof AI_RESEARCH_CREATE_TASK_DRAFT_CHANNEL_TYPE =
   'ai-research:create-task-draft';
 const AI_RESEARCH_RUN_CONFIRMED_TASK_CHANNEL: typeof AI_RESEARCH_RUN_CONFIRMED_TASK_CHANNEL_TYPE =
@@ -299,6 +312,14 @@ const AI_RESEARCH_CLEAR_TASK_RESULT_CHANNEL: typeof AI_RESEARCH_CLEAR_TASK_RESUL
   'ai-research:clear-task-result';
 const AI_RESEARCH_DISCARD_ARTIFACT_CHANNEL: typeof AI_RESEARCH_DISCARD_ARTIFACT_CHANNEL_TYPE =
   'ai-research:discard-artifact';
+const AI_RESEARCH_SAVE_ARTIFACT_DRAFT_CHANNEL: typeof AI_RESEARCH_SAVE_ARTIFACT_DRAFT_CHANNEL_TYPE =
+  'ai-research:save-artifact-draft';
+const AI_RESEARCH_TASK_CHUNK_EVENT: typeof AI_RESEARCH_TASK_CHUNK_EVENT_TYPE =
+  'ai-research:task-chunk';
+const AI_RESEARCH_TASK_DONE_EVENT: typeof AI_RESEARCH_TASK_DONE_EVENT_TYPE =
+  'ai-research:task-done';
+const AI_RESEARCH_TASK_ERROR_EVENT: typeof AI_RESEARCH_TASK_ERROR_EVENT_TYPE =
+  'ai-research:task-error';
 const SETTINGS_GET_PROVIDER_PRESETS_CHANNEL: typeof SETTINGS_GET_PROVIDER_PRESETS_CHANNEL_TYPE =
   'settings:get-provider-presets';
 const SETTINGS_GET_PROVIDER_CONFIGS_CHANNEL: typeof SETTINGS_GET_PROVIDER_CONFIGS_CHANNEL_TYPE =
@@ -685,6 +706,11 @@ const scholaApi: ScholaApi = Object.freeze({
         AI_RESEARCH_PREVIEW_CONTEXT_PACK_CHANNEL,
         contextPackId,
       ) as Promise<ResearchContextPreview>,
+    confirmContextPack: (input: ConfirmContextPackInput) =>
+      ipcRenderer.invoke(
+        AI_RESEARCH_CONFIRM_CONTEXT_PACK_CHANNEL,
+        input,
+      ) as Promise<ContextConfirmationSnapshot>,
     createTaskDraft: (input: CreateTaskDraftInput) =>
       ipcRenderer.invoke(
         AI_RESEARCH_CREATE_TASK_DRAFT_CHANNEL,
@@ -711,6 +737,36 @@ const scholaApi: ScholaApi = Object.freeze({
       ipcRenderer.invoke(AI_RESEARCH_CLEAR_TASK_RESULT_CHANNEL, taskId) as Promise<void>,
     discardArtifact: (artifactId: string) =>
       ipcRenderer.invoke(AI_RESEARCH_DISCARD_ARTIFACT_CHANNEL, artifactId) as Promise<void>,
+    saveArtifactDraft: (input: SaveArtifactDraftInput) =>
+      ipcRenderer.invoke(
+        AI_RESEARCH_SAVE_ARTIFACT_DRAFT_CHANNEL,
+        input,
+      ) as Promise<SaveArtifactDraftResult>,
+    subscribeTask: (taskId: string, callbacks: SubscribeTaskCallbacks): (() => void) => {
+      const safeTaskId = String(taskId);
+      const chunkHandler = (_event: Electron.IpcRendererEvent, chunk: ChatChunk): void => {
+        if (chunk.taskId !== safeTaskId || chunk.type !== 'content') return;
+        callbacks.onChunk?.(chunk);
+      };
+      const doneHandler = (_event: Electron.IpcRendererEvent, chunk: ChatChunk): void => {
+        if (chunk.taskId !== safeTaskId || chunk.type !== 'done') return;
+        callbacks.onDone?.(chunk);
+      };
+      const errorHandler = (_event: Electron.IpcRendererEvent, chunk: ChatChunk): void => {
+        if (chunk.taskId !== safeTaskId || chunk.type !== 'error') return;
+        callbacks.onError?.(chunk);
+      };
+
+      ipcRenderer.on(AI_RESEARCH_TASK_CHUNK_EVENT, chunkHandler);
+      ipcRenderer.on(AI_RESEARCH_TASK_DONE_EVENT, doneHandler);
+      ipcRenderer.on(AI_RESEARCH_TASK_ERROR_EVENT, errorHandler);
+
+      return () => {
+        ipcRenderer.removeListener(AI_RESEARCH_TASK_CHUNK_EVENT, chunkHandler);
+        ipcRenderer.removeListener(AI_RESEARCH_TASK_DONE_EVENT, doneHandler);
+        ipcRenderer.removeListener(AI_RESEARCH_TASK_ERROR_EVENT, errorHandler);
+      };
+    },
   }),
   settings: Object.freeze<ScholaSettingsApi>({
     getProviderPresets: () =>

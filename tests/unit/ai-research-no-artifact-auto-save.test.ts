@@ -73,14 +73,14 @@ describe('AI Research — No Artifact Auto-Save', () => {
     );
   });
 
-  it('52-TB-SEC-094: no artifact write-to-vault IPC channel', () => {
+  it('52-TB-SEC-094: no automatic artifact write-to-vault IPC channel', () => {
     const typesFile = readSource('src/lib/contracts/ai-research.types.ts');
     assert.ok(typesFile, 'ai-research.types.ts must exist');
 
-    // Must not have save-artifact, write-artifact, persist-artifact channels
+    // IMP-4 allows one explicit manual save channel, but no automatic/generic write channel.
     assert.ok(
-      !/save-artifact/.test(typesFile),
-      'Must not have save-artifact channel',
+      /save-artifact-draft/.test(typesFile),
+      'Manual save-artifact-draft channel must exist',
     );
     assert.ok(
       !/write-artifact/.test(typesFile),
@@ -100,11 +100,12 @@ describe('AI Research — No Artifact Auto-Save', () => {
     const taskService = readSource('electron/services/ai-research-task.service.ts');
     assert.ok(taskService, 'task service must exist');
 
-    // Must have a discard function that calls artifacts.delete()
+    // IMP-4 marks the draft discarded in memory; it must still not write files.
     assert.ok(
-      /artifacts\s*\.\s*delete/.test(taskService),
-      'discardArtifact must call artifacts.delete()',
+      /status:\s*'discarded'/.test(taskService),
+      'discardArtifact must mark draft as discarded',
     );
+    assert.ok(!/discardArtifactDraft[\s\S]{0,400}writeFile/.test(taskService));
   });
 
   it('52-TB-SEC-096: no auto-save on task completion', () => {

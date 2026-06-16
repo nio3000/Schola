@@ -13,7 +13,9 @@ import type {
   BuildContextPackInput,
   ContextPackFileEntry,
   ContextSourceRef,
+  ContextSourceType,
   ContextTokenEstimate,
+  EvidenceRef,
   ProviderReadiness,
   ResearchContextPack,
   ResearchContextPreview,
@@ -37,14 +39,32 @@ const DEFAULT_SYSTEM_TOKENS = 800;
 const MAX_MARKDOWN_HEADINGS = 64;
 const MAX_HEADING_LENGTH = 180;
 
+/** Phase 5-5-C-IMP-1: ContextPack builder limits. */
+export const MAX_FILES = 20;
+const FORMAT_READ_LIMITS: Record<ContextSourceType, number> = {
+  markdown: 32_768,  // 32KB
+  pdf:      0,       // IMP-2: real text extraction via pdfjs-dist
+  html:     32_768,  // 32KB
+  txt:      32_768,  // 32KB
+  csv:      16_384,  // 16KB
+  docx:     0,       // IMP-2: real text extraction via word-extractor
+  xlsx:     0,       // IMP-2: real text extraction via xlsx
+  doc:      0,       // IMP-2: real text extraction via word-extractor (legacy)
+  xls:      0,       // IMP-2: real text extraction via xlsx (legacy)
+  pptx:     0,       // metadata only
+  other:    0,       // metadata only
+};
+
 const CJK_PATTERN = /[\u3400-\u9FFF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF]/g;
 const WINDOWS_DRIVE_PATH_PATTERN = /^[a-zA-Z]:[\\/]/;
 const UNC_PATH_PATTERN = /^(?:\\\\|\/\/)/;
 
 const contextPacks = new Map<string, ResearchContextPack>();
 const contextPackSourceRefs = new Map<string, readonly ContextSourceRef[]>();
+/** Phase 5-5-C-IMP-2: Store file contents keyed by packId + relativePath for provider generation. */
+const contextPackContents = new Map<string, Map<string, string>>();
 
-type SourceType = ContextSourceRef['sourceType'];
+const QUOTE_PREVIEW_LIMIT = 180;
 
 type TokenEstimateInput =
   | string
@@ -79,11 +99,16 @@ export function buildContextPack(input: BuildContextPackInput): ResearchContextP
     throw new Error('INVALID_INPUT: selectedSources must contain at least one user-selected file.');
   }
 
+  if (input.selectedSources.length > MAX_FILES) {
+    throw new Error(`INVALID_INPUT: maximum ${MAX_FILES} files allowed per ContextPack.`);
+  }
+
   const rootPath = getVaultRootPath(vaultId);
   const systemTokens = getSystemTokenBudget(tokenBudget);
   let fileTokens = 0;
   const entries: ContextPackFileEntry[] = [];
   const selectedSourceRefs: ContextSourceRef[] = [];
+  const contentStore = new Map<string, string>();
 
   for (const selectedSource of input.selectedSources) {
     const readResult = readSelectedSource(rootPath, selectedSource);
@@ -106,6 +131,12 @@ export function buildContextPack(input: BuildContextPackInput): ResearchContextP
       ...metadata,
     });
     selectedSourceRefs.push(readResult.sourceRef);
+
+    // Phase 5-5-C-IMP-2: Store content for provider generation.
+    // Only text content (string) is stored; Buffer content is stored as empty string.
+    const contentStr = typeof readResult.content === 'string' ? readResult.content : '';
+    contentStore.set(readResult.sourceRef.relativePath, contentStr);
+
     fileTokens += tokenCount;
   }
 
@@ -128,6 +159,8 @@ export function buildContextPack(input: BuildContextPackInput): ResearchContextP
 
   contextPacks.set(pack.id, pack);
   contextPackSourceRefs.set(pack.id, selectedSourceRefs);
+  // Phase 5-5-C-IMP-2: Store file contents for provider generation.
+  contextPackContents.set(pack.id, contentStore);
 
   return toPreview(pack, selectedSourceRefs);
 }
@@ -140,6 +173,72 @@ export function previewContextPack(contextPackId: string): ResearchContextPrevie
   }
 
   return toPreview(pack, contextPackSourceRefs.get(packId) ?? toSourceRefs(pack));
+}
+
+/**
+ * Phase 5-5-C-IMP-2: Get the stored file contents for a ContextPack.
+ * Returns a Map of relativePath → text content.
+ * Only text-based files have content; binary/pdf files have empty strings.
+ */
+export function getContextPackContent(
+  contextPackId: string,
+): Map<string, string> | undefined {
+  return contextPackContents.get(contextPackId);
+}
+
+export function getContextPackSourceRefs(contextPackId: string): readonly ContextSourceRef[] {
+  const packId = assertString(contextPackId, 'contextPackId');
+  const refs = contextPackSourceRefs.get(packId);
+  if (!refs) {
+    throw new Error('CONTEXT_PACK_NOT_FOUND: ContextPack is not available in memory.');
+  }
+  return refs;
+}
+
+export function buildEvidenceRefsForContextPack(
+  contextPackId: string,
+  modelContent: string,
+): readonly EvidenceRef[] {
+  const packId = assertString(contextPackId, 'contextPackId');
+  const refs = contextPackSourceRefs.get(packId) ?? [];
+  const contentMap = contextPackContents.get(packId) ?? new Map<string, string>();
+  const evidence: EvidenceRef[] = [];
+
+  refs.forEach((source, index) => {
+    const content = contentMap.get(source.relativePath) ?? '';
+    const textBacked = content.trim().length > 0;
+    evidence.push({
+      id: `evidence-${packId}-${index + 1}`,
+      kind: 'source-backed',
+      label: textBacked ? '上下文来源' : '上下文来源（metadata-only）',
+      sourceId: `${packId}:${source.relativePath}`,
+      relativePath: source.relativePath,
+      displayName: source.displayName,
+      sourceType: source.sourceType,
+      quotePreview: textBacked ? buildQuotePreview(content) : undefined,
+      confidence: textBacked ? 'high' : 'medium',
+      note: textBacked
+        ? '基于用户确认发送的 ContextPack 正文生成，需人工复核。'
+        : '该资源本阶段仅作为 metadata-only 来源，不生成正文 quotePreview。',
+      sourceRef: {
+        relativePath: source.relativePath,
+        displayName: source.displayName,
+      },
+    });
+  });
+
+  if (modelContent.trim().length > 0) {
+    evidence.push({
+      id: `evidence-${packId}-model-inferred`,
+      kind: 'model-inferred',
+      label: '模型综合推断',
+      confidence: 'medium',
+      note: '此项由模型综合上下文生成，不能直接追溯到某一条原文证据。',
+      modelInferredNote: '此项为模型综合推断，非原文直接引用。请人工核验。',
+    });
+  }
+
+  return evidence;
 }
 
 export function estimateTokens(
@@ -277,11 +376,24 @@ function readSelectedSource(rootPath: string, source: ContextSourceRef): Selecte
     fileSize: stat.size,
   };
 
+  const rawContent = readVaultFileContent(absolutePath, relativePath, sourceType);
+  const readLimit = FORMAT_READ_LIMITS[sourceType];
+  const content = applyReadLimit(rawContent, readLimit);
+
   return {
     sourceRef,
-    content: readVaultFileContent(absolutePath, relativePath, sourceType),
+    content,
     size: stat.size,
   };
+}
+
+/** Apply per-format read limit to content, truncating if needed. */
+function applyReadLimit(content: string | Buffer, limit: number): string | Buffer {
+  if (limit <= 0) return '';
+  if (Buffer.isBuffer(content)) {
+    return content.length > limit ? content.subarray(0, limit) : content;
+  }
+  return content.length > limit ? content.slice(0, limit) : content;
 }
 
 function normalizeSourceRelativePath(input: unknown): string {
@@ -307,11 +419,14 @@ function normalizeSourceRelativePath(input: unknown): string {
   return segments.join('/');
 }
 
-function normalizeSourceType(sourceType: SourceType): SourceType {
-  if (sourceType !== 'markdown' && sourceType !== 'pdf' && sourceType !== 'note') {
-    throw new Error('INVALID_SOURCE: unsupported source type.');
-  }
-  return sourceType;
+function normalizeSourceType(sourceType: string): ContextSourceType {
+  const valid: Set<string> = new Set([
+    'markdown', 'pdf', 'html', 'txt', 'csv',
+    'docx', 'xlsx', 'doc', 'xls', 'pptx', 'other', 'note',
+  ]);
+  if (!valid.has(sourceType)) return 'other';
+  if (sourceType === 'note') return 'markdown';
+  return sourceType as ContextSourceType;
 }
 
 function sanitizeDisplayName(displayName: string, relativePath: string): string {
@@ -345,22 +460,64 @@ function getVaultFileStat(absolutePath: string, relativePath: string): fs.Stats 
 function readVaultFileContent(
   absolutePath: string,
   relativePath: string,
-  sourceType: SourceType,
+  sourceType: ContextSourceType,
 ): string | Buffer {
   try {
-    if (sourceType === 'pdf') {
-      return fs.readFileSync(absolutePath);
+    const readLimit = FORMAT_READ_LIMITS[sourceType];
+    switch (sourceType) {
+      case 'pdf':
+      case 'docx':
+      case 'xlsx':
+      case 'doc':
+      case 'xls':
+        return ''; // Phase 5-5-C-IMP-1: metadata only. Real text extraction → IMP-2 (pdfjs-dist / word-extractor / xlsx)
+      case 'html': {
+        const rawHtml = readLimitedUtf8(absolutePath, readLimit);
+        return stripHtmlTags(rawHtml);
+      }
+      case 'pptx':
+      case 'other':
+        return ''; // Metadata only, no body content
+      default:
+        return readLimitedUtf8(absolutePath, readLimit);
     }
-    return fs.readFileSync(absolutePath, 'utf-8');
   } catch {
     throw new Error(`READ_SOURCE_FAILED: "${relativePath}" could not be read.`);
   }
 }
 
+function readLimitedUtf8(absolutePath: string, limit: number): string {
+  if (limit <= 0) return '';
+  const fd = fs.openSync(absolutePath, 'r');
+  try {
+    const buffer = Buffer.alloc(limit);
+    const bytesRead = fs.readSync(fd, buffer, 0, limit, 0);
+    return buffer.subarray(0, bytesRead).toString('utf-8');
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/** Strip HTML tags, scripts, and styles from HTML content for context extraction. */
+function stripHtmlTags(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#\d+;/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function buildSourceMetadata(
   sourceRef: ContextSourceRef,
   content: string | Buffer,
-): Pick<ContextPackFileEntry, 'pdfPageRange' | 'markdownHeadings'> {
+): Partial<Pick<ContextPackFileEntry, 'pdfPageRange' | 'markdownHeadings' | 'sheetRange'>> {
   if (sourceRef.sourceType === 'pdf' && Buffer.isBuffer(content)) {
     const pageCount = extractPdfPageCount(content);
     return pageCount ? { pdfPageRange: `1-${pageCount}` } : {};
@@ -371,13 +528,18 @@ function buildSourceMetadata(
     return markdownHeadings.length > 0 ? { markdownHeadings } : {};
   }
 
+  if ((sourceRef.sourceType === 'csv' || sourceRef.sourceType === 'xlsx' || sourceRef.sourceType === 'xls') && typeof content === 'string') {
+    const lineCount = content.split(/\r?\n/).filter((l) => l.trim().length > 0).length;
+    return lineCount > 0 ? { sheetRange: `1-${lineCount} rows` } : {};
+  }
+
   return {};
 }
 
 function shouldExtractMarkdownHeadings(sourceRef: ContextSourceRef): boolean {
   const extension = path.extname(sourceRef.relativePath).toLowerCase();
   return (
-    sourceRef.sourceType === 'markdown' || sourceRef.sourceType === 'note' || extension === '.md'
+    sourceRef.sourceType === 'markdown' || extension === '.md' || extension === '.markdown'
   );
 }
 
@@ -434,14 +596,16 @@ function getSystemTokenBudget(tokenBudget: number): number {
 }
 
 function estimateSourceTokens(
-  sourceType: SourceType,
+  sourceType: ContextSourceType,
   content: string | Buffer,
   size: number,
 ): number {
+  if (sourceType === 'pptx' || sourceType === 'other') {
+    return 0; // Metadata only, no body tokens
+  }
   if (sourceType === 'pdf') {
     return estimateByteTokens(size);
   }
-
   return typeof content === 'string'
     ? estimateTextTokens(content)
     : estimateByteTokens(content.length);
@@ -534,4 +698,15 @@ function buildPreviewWarnings(pack: ResearchContextPack): readonly string[] {
   }
 
   return warnings;
+}
+
+function buildQuotePreview(content: string): string {
+  return content
+    .replace(/sk-[a-zA-Z0-9_-]{12,}/g, '[REDACTED]')
+    .replace(/Bearer\s+[a-zA-Z0-9_-]+/g, 'Bearer [REDACTED]')
+    .replace(/Authorization:\s*.+/gi, 'Authorization: [REDACTED]')
+    .replace(/[A-Za-z]:\\[^\s,;]*/g, '[PATH]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, QUOTE_PREVIEW_LIMIT);
 }

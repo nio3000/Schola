@@ -77,19 +77,24 @@ export type ChatRequest = MainChatRequest;
 
 /** Streaming chunk types. */
 export type ChatChunk =
-  | { readonly type: 'content'; readonly content: string }
-  | { readonly type: 'done' }
-  | { readonly type: 'error'; readonly error: string /* sanitized */ };
+  | {
+      readonly type: 'content';
+      readonly taskId: string;
+      readonly content: string;
+      readonly index?: number;
+    }
+  | {
+      readonly type: 'done';
+      readonly taskId: string;
+      readonly durationMs?: number;
+      readonly totalTokens?: number;
+    }
+  | { readonly type: 'error'; readonly taskId: string; readonly error: AISanitizedError };
 
 // ── Task ─────────────────────────────────────────────
 
 /** AI task lifecycle state. */
-export type AITaskState =
-  | 'pending'
-  | 'streaming'
-  | 'cancelled'
-  | 'done'
-  | 'error';
+export type AITaskState = 'pending' | 'streaming' | 'cancelled' | 'done' | 'error';
 
 /** AI task status — renderer-safe (no apiKey). */
 export interface AITaskStatus {

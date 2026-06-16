@@ -28,8 +28,15 @@ export class OpenAICompatibleAdapter implements AIProviderAdapter {
   async *chat(request: MainChatRequest): AsyncIterable<ChatChunk> {
     const apiKey = getProviderKey(this.id);
     if (!apiKey) {
-      yield { type: 'error', error: `No API key configured for ${this.preset.displayName}.` };
-      yield { type: 'done' };
+      yield {
+        type: 'error',
+        taskId: request.taskId,
+        error: {
+          code: 'missing_api_key',
+          message: `No API key configured for ${this.preset.displayName}.`,
+        },
+      };
+      yield { type: 'done', taskId: request.taskId };
       return;
     }
 
@@ -42,19 +49,31 @@ export class OpenAICompatibleAdapter implements AIProviderAdapter {
 
     try {
       // Skeleton — no real HTTP. Production: fetch() SSE/streaming.
-      yield { type: 'content', content: `[${this.preset.displayName}] Streaming ready (BYOK). Real API calls require Phase 4-1-IMP-4 production integration.` };
+      yield {
+        type: 'content',
+        taskId: request.taskId,
+        content: `[${this.preset.displayName}] Streaming ready (BYOK). Real API calls require Phase 4-1-IMP-4 production integration.`,
+      };
 
       if (cancelled) {
-        yield { type: 'error', error: 'Task cancelled.' };
+        yield {
+          type: 'error',
+          taskId: request.taskId,
+          error: { code: 'cancelled', message: 'Task cancelled.' },
+        };
         return;
       }
 
-      yield { type: 'done' };
+      yield { type: 'done', taskId: request.taskId };
     } catch (err) {
       const msg = err instanceof Error ? err.message.slice(0, 200) : 'Unknown error';
-      yield { type: 'error', error: msg };
+      yield {
+        type: 'error',
+        taskId: request.taskId,
+        error: { code: 'provider_error', message: msg },
+      };
     } finally {
-      yield { type: 'done' };
+      yield { type: 'done', taskId: request.taskId };
     }
   }
 

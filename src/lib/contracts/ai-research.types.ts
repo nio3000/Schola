@@ -19,7 +19,7 @@
  *   - NO automatic Vault writes
  *   - NO artifact auto-save
  */
-import type { AIModelInfo } from './ai-provider.types';
+import type { AIModelInfo, AISanitizedError } from './ai-provider.types';
 import type { ProviderPreset } from './provider-preset.types';
 
 // ═══════════════════════════════════════════════════════
@@ -29,6 +29,7 @@ import type { ProviderPreset } from './provider-preset.types';
 export const AI_RESEARCH_GET_PROVIDER_READINESS_CHANNEL = 'ai-research:get-provider-readiness';
 export const AI_RESEARCH_BUILD_CONTEXT_PACK_CHANNEL = 'ai-research:build-context-pack';
 export const AI_RESEARCH_PREVIEW_CONTEXT_PACK_CHANNEL = 'ai-research:preview-context-pack';
+export const AI_RESEARCH_CONFIRM_CONTEXT_PACK_CHANNEL = 'ai-research:confirm-context-pack';
 export const AI_RESEARCH_CREATE_TASK_DRAFT_CHANNEL = 'ai-research:create-task-draft';
 export const AI_RESEARCH_RUN_CONFIRMED_TASK_CHANNEL = 'ai-research:run-confirmed-task';
 export const AI_RESEARCH_CANCEL_TASK_CHANNEL = 'ai-research:cancel-task';
@@ -36,6 +37,11 @@ export const AI_RESEARCH_GET_TASK_STATUS_CHANNEL = 'ai-research:get-task-status'
 export const AI_RESEARCH_GET_TASK_RESULT_CHANNEL = 'ai-research:get-task-result';
 export const AI_RESEARCH_CLEAR_TASK_RESULT_CHANNEL = 'ai-research:clear-task-result';
 export const AI_RESEARCH_DISCARD_ARTIFACT_CHANNEL = 'ai-research:discard-artifact';
+export const AI_RESEARCH_SAVE_ARTIFACT_DRAFT_CHANNEL = 'ai-research:save-artifact-draft';
+export const AI_RESEARCH_SUBSCRIBE_TASK_CHANNEL = 'ai-research:subscribe-task';
+export const AI_RESEARCH_TASK_CHUNK_EVENT = 'ai-research:task-chunk';
+export const AI_RESEARCH_TASK_DONE_EVENT = 'ai-research:task-done';
+export const AI_RESEARCH_TASK_ERROR_EVENT = 'ai-research:task-error';
 
 // ═══════════════════════════════════════════════════════
 // AI Research Task Types
@@ -65,6 +71,20 @@ export const AI_RESEARCH_TASK_LABELS: Record<AIResearchTaskType, string> = {
 // Context Sources
 // ═══════════════════════════════════════════════════════
 
+/** Context source type — maps to supported resource formats for ContextPack reading. */
+export type ContextSourceType =
+  | 'markdown'
+  | 'pdf'
+  | 'html'
+  | 'txt'
+  | 'csv'
+  | 'docx'
+  | 'xlsx'
+  | 'doc'
+  | 'xls'
+  | 'pptx'
+  | 'other';
+
 /** Reference to a selected context source file. No system absolute path. */
 export interface ContextSourceRef {
   /** Relative path from Vault root. */
@@ -72,7 +92,7 @@ export interface ContextSourceRef {
   /** Display name (filename or title). */
   readonly displayName: string;
   /** Source type. */
-  readonly sourceType: 'markdown' | 'pdf' | 'note';
+  readonly sourceType: ContextSourceType;
   /** File size in bytes (for token estimation). */
   readonly fileSize: number;
 }
@@ -115,7 +135,7 @@ export interface ContextPackFileEntry {
   /** Display name. */
   readonly displayName: string;
   /** Source type. */
-  readonly sourceType: 'markdown' | 'pdf' | 'note';
+  readonly sourceType: ContextSourceType;
   /** Estimated token count. */
   readonly tokenCount: number;
   /** Whether this file was truncated to fit token budget. */
@@ -124,6 +144,8 @@ export interface ContextPackFileEntry {
   readonly pdfPageRange?: string;
   /** For Markdown sources: heading/block metadata. */
   readonly markdownHeadings?: readonly string[];
+  /** For XLSX/CSV sources: sheet/row range metadata. */
+  readonly sheetRange?: string;
 }
 
 /** Full ContextPack — built in main process, renderer-safe summary only. */
@@ -192,7 +214,9 @@ export type InvocationBlockedReason =
   | 'context_send_policy_denied'
   | 'context_pack_not_ready'
   | 'context_not_confirmed'
-  | 'user_not_explicitly_run';
+  | 'user_not_explicitly_run'
+  | 'unsupported_provider'
+  | 'missing_model';
 
 export interface InvocationPreflightResult {
   /** Whether all gates passed. */
@@ -236,6 +260,10 @@ export interface ContextConfirmationSnapshot {
   readonly vaultId: string | null;
 }
 
+export interface ConfirmContextPackInput {
+  readonly contextPackId: string;
+}
+
 // ═══════════════════════════════════════════════════════
 // AI Research Task
 // ═══════════════════════════════════════════════════════
@@ -263,6 +291,8 @@ export interface AIResearchTaskRequest {
   readonly model: string;
   /** Optional pre-configured instruction template. */
   readonly templateId?: string;
+  /** Phase 5-5-C-IMP-2: Skill prompt template for system message. */
+  readonly skillPromptTemplate?: string;
 }
 
 export interface AIResearchTaskStatus {
@@ -279,14 +309,18 @@ export interface AIResearchTaskStatus {
 }
 
 export interface AIArtifactDraft {
+  /** Stable draft ID. Kept aligned with artifactId for backward compatibility. */
+  readonly id: string;
   readonly artifactId: string;
   readonly taskId: string;
   readonly taskType: AIResearchTaskType;
   readonly title: string;
+  readonly format: 'markdown';
   /** The draft content (Markdown). */
   readonly content: string;
   /** Evidence references. */
   readonly evidence: readonly EvidenceRef[];
+  readonly evidenceRefs: readonly EvidenceRef[];
   /** Warnings (e.g., truncation, low confidence). */
   readonly warnings: readonly AIResearchWarning[];
   /** Whether this is a draft (always true in Phase 5-2). */
@@ -295,6 +329,20 @@ export interface AIArtifactDraft {
   readonly reviewRequired: true;
   /** Created timestamp. */
   readonly createdAt: string;
+  /** Updated timestamp. */
+  readonly updatedAt: string;
+  /** Source ContextPack ID. */
+  readonly sourcePackId: string;
+  /** Target provider ID. */
+  readonly providerId: string;
+  /** Target model. */
+  readonly model: string;
+  /** Skill ID or prompt-template fallback label. */
+  readonly skillId: string;
+  /** Draft lifecycle status. */
+  readonly status: 'draft' | 'saved' | 'discarded';
+  /** Saved Vault-relative path, present only after manual save. */
+  readonly savedRelativePath?: string;
 }
 
 export interface AIResearchTaskResult {
@@ -320,6 +368,17 @@ export interface EvidenceRef {
   readonly kind: EvidenceKind;
   /** Human-readable label. */
   readonly label: string;
+  readonly sourceId?: string;
+  readonly relativePath?: string;
+  readonly displayName?: string;
+  readonly sourceType?: ContextSourceType | string;
+  readonly heading?: string;
+  readonly page?: number;
+  readonly sheetName?: string;
+  readonly rowRange?: string;
+  readonly quotePreview?: string;
+  readonly confidence?: 'high' | 'medium' | 'low';
+  readonly note?: string;
   /** For source-backed: reference to source file metadata. */
   readonly sourceRef?: {
     readonly relativePath: string;
@@ -333,6 +392,20 @@ export interface EvidenceRef {
   };
   /** For model-inferred: explicit disclaimer that this is NOT source evidence. */
   readonly modelInferredNote?: string;
+}
+
+export interface SaveArtifactDraftInput {
+  readonly vaultId: string;
+  readonly artifactId: string;
+  readonly targetRelativePath?: string;
+  readonly overwriteConfirmed?: boolean;
+}
+
+export interface SaveArtifactDraftResult {
+  readonly ok: true;
+  readonly artifactId: string;
+  readonly relativePath: string;
+  readonly artifact: AIArtifactDraft;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -365,6 +438,27 @@ export interface AIInvocationError {
   readonly message: string /* sanitized — no raw prompt, no API key, no file content */;
   readonly details?: string;
   readonly retryable: boolean;
+}
+
+export type ChatChunk =
+  | {
+      readonly type: 'content';
+      readonly taskId: string;
+      readonly content: string;
+      readonly index?: number;
+    }
+  | {
+      readonly type: 'done';
+      readonly taskId: string;
+      readonly durationMs?: number;
+      readonly totalTokens?: number;
+    }
+  | { readonly type: 'error'; readonly taskId: string; readonly error: AISanitizedError };
+
+export interface SubscribeTaskCallbacks {
+  readonly onChunk?: (chunk: ChatChunk) => void;
+  readonly onDone?: (chunk: ChatChunk) => void;
+  readonly onError?: (chunk: ChatChunk) => void;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -422,6 +516,8 @@ export interface CreateTaskDraftInput {
   readonly instruction: string;
   readonly providerId: string;
   readonly model: string;
+  /** Phase 5-5-C-IMP-2: Skill prompt template for system message. Falls back to default if absent. */
+  readonly skillPromptTemplate?: string;
 }
 
 /** Input: run a confirmed task. */
@@ -442,6 +538,9 @@ export interface ScholaAIResearchApi {
   readonly getProviderReadiness: (providerId?: string) => Promise<readonly ProviderReadiness[]>;
   readonly buildContextPack: (input: BuildContextPackInput) => Promise<ResearchContextPreview>;
   readonly previewContextPack: (contextPackId: string) => Promise<ResearchContextPreview>;
+  readonly confirmContextPack: (
+    input: ConfirmContextPackInput,
+  ) => Promise<ContextConfirmationSnapshot>;
   readonly createTaskDraft: (input: CreateTaskDraftInput) => Promise<AIResearchTaskStatus>;
   readonly runConfirmedTask: (input: RunConfirmedTaskInput) => Promise<AIResearchTaskStatus>;
   readonly cancelTask: (input: CancelTaskInput) => Promise<AIResearchTaskStatus>;
@@ -449,4 +548,6 @@ export interface ScholaAIResearchApi {
   readonly getTaskResult: (taskId: string) => Promise<AIResearchTaskResult>;
   readonly clearTaskResult: (taskId: string) => Promise<void>;
   readonly discardArtifact: (artifactId: string) => Promise<void>;
+  readonly saveArtifactDraft: (input: SaveArtifactDraftInput) => Promise<SaveArtifactDraftResult>;
+  readonly subscribeTask: (taskId: string, callbacks: SubscribeTaskCallbacks) => () => void;
 }

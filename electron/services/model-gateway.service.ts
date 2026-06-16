@@ -44,10 +44,17 @@ class NoopModelGateway implements AIModelGateway {
     this.modelInfos.set(providerId, models);
   }
 
-  async *chat(_request: MainChatRequest): AsyncIterable<ChatChunk> {
+  async *chat(request: MainChatRequest): AsyncIterable<ChatChunk> {
     // No-op: returns single error chunk
-    yield { type: 'error', error: 'AI Workbench not yet implemented. Phase 4-1-IMP-3 required.' };
-    yield { type: 'done' };
+    yield {
+      type: 'error',
+      taskId: request.taskId,
+      error: {
+        code: 'unsupported_provider',
+        message: 'AI Workbench not yet implemented. Phase 4-1-IMP-3 required.',
+      },
+    };
+    yield { type: 'done', taskId: request.taskId };
   }
 
   cancel(_taskId: string): void {

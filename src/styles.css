@@ -7102,3 +7102,363 @@ body.is-resizing * {
   min-width: max-content;
   padding: 0 2px;
 }
+
+/* AI Research clean workbench refresh */
+.workspace-ai-research-codex {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.workspace-ai-research-clean-hero {
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 58px;
+  padding: 12px 18px;
+  background: var(--bg-primary);
+}
+
+.workspace-ai-research-title-block h1 {
+  font-size: 1rem;
+}
+
+.workspace-ai-research-title-block p {
+  margin-top: 4px;
+  font-size: 0.76rem;
+}
+
+.workspace-ai-research-chat-layout {
+  grid-template-columns:
+    clamp(190px, 13vw, 250px)
+    minmax(0, 1fr)
+    clamp(240px, 15vw, 300px);
+  flex: 1 1 auto;
+  gap: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.workspace-ai-research-chat-layout .workspace-ai-research-column {
+  gap: 10px;
+  min-height: 0;
+  padding: 12px;
+}
+
+.workspace-ai-research-source-rail,
+.workspace-ai-research-inspector {
+  overflow: auto;
+  background: var(--bg-secondary);
+}
+
+.workspace-ai-research-source-rail {
+  border-right: 1px solid var(--border);
+}
+
+.workspace-ai-research-inspector {
+  border-left: 1px solid var(--border);
+}
+
+.workspace-ai-research-chat-column {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: auto;
+  background: var(--bg-primary);
+}
+
+.workspace-ai-research-chat-thread {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+  overflow: visible;
+  padding: clamp(12px, 2vh, 22px) clamp(20px, 5vw, 96px) 18px;
+}
+
+.workspace-ai-research-chat-message {
+  max-width: 760px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.workspace-ai-research-chat-message span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.workspace-ai-research-chat-message p {
+  margin: 0;
+}
+
+.workspace-ai-research-chat-layout .workspace-ai-research-card {
+  border-color: var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  box-shadow: none;
+}
+
+.workspace-ai-research-chat-layout .workspace-ai-research-response-card {
+  width: min(1040px, 100%);
+  min-height: 0;
+  align-self: flex-start;
+  border-color: transparent;
+  padding: 4px 0;
+  background: transparent;
+}
+
+.workspace-ai-research-chat-layout .workspace-ai-research-response-preview {
+  min-height: clamp(140px, 28vh, 320px);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.75;
+}
+
+.workspace-ai-research-compact-header {
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.workspace-ai-research-source-card {
+  position: relative;
+}
+
+.workspace-ai-research-source-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.workspace-ai-research-source-actions [data-testid='ai-research-build-pack-btn'] {
+  grid-column: 1 / -1;
+}
+
+.workspace-ai-research-selected-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.workspace-ai-research-source-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.workspace-ai-research-source-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-ai-research-source-chip strong {
+  color: var(--text-muted);
+}
+
+.workspace-ai-research-source-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  background: color-mix(in srgb, var(--bg-tertiary) 32%, transparent);
+}
+
+.workspace-ai-research-source-picker {
+  z-index: 30;
+  display: flex;
+  width: min(860px, calc(100vw - 72px));
+  max-height: min(680px, calc(100vh - 88px));
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-primary);
+  box-shadow: 0 20px 44px color-mix(in srgb, var(--bg-tertiary) 30%, transparent);
+}
+
+.workspace-ai-research-source-picker .workspace-ai-research-source-row {
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(96px, auto);
+}
+
+.workspace-ai-research-source-picker .workspace-ai-research-source-size {
+  justify-content: flex-end;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-ai-research-source-picker-header,
+.workspace-ai-research-source-picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.workspace-ai-research-source-search {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.workspace-ai-research-source-search:focus {
+  border-color: var(--accent);
+}
+
+.workspace-ai-research-picker-list {
+  max-height: 460px;
+  margin-bottom: 0;
+}
+
+.workspace-ai-research-source-row-selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.workspace-ai-research-source-row-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.workspace-ai-research-source-row-disabled:hover {
+  background: transparent;
+}
+
+.workspace-ai-research-runtime-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.workspace-ai-research-model-focus {
+  margin-top: 10px;
+}
+
+.workspace-ai-research-composer {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  width: min(1040px, calc(100% - 36px));
+  align-self: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  margin: 0 18px 18px;
+  padding: 10px;
+  background: var(--bg-primary);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--bg-tertiary) 10%, transparent);
+}
+
+.workspace-ai-research-composer-input {
+  min-width: 0;
+}
+
+.workspace-ai-research-composer-textarea {
+  min-height: 42px;
+  max-height: 120px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 0.88rem;
+  resize: none;
+}
+
+.workspace-ai-research-composer-textarea:focus {
+  box-shadow: none;
+}
+
+.workspace-ai-research-composer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.workspace-ai-research-composer-plus {
+  font-size: 1rem;
+}
+
+.workspace-ai-research-composer-context {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+}
+
+.workspace-ai-research-composer-spacer {
+  flex: 1 1 auto;
+}
+
+.workspace-ai-research-chat-layout .workspace-ai-research-artifact-card {
+  min-height: 0;
+}
+
+.workspace-ai-research-chat-layout .workspace-ai-research-artifact-preview {
+  max-height: 220px;
+  min-height: 120px;
+}
+
+@media (max-width: 1180px) {
+  .workspace-ai-research-chat-layout {
+    grid-template-columns: clamp(180px, 22vw, 230px) minmax(0, 1fr);
+  }
+
+  .workspace-ai-research-inspector {
+    display: none;
+  }
+}
+
+@media (max-width: 860px) {
+  .workspace-ai-research-chat-layout {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .workspace-ai-research-source-rail {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .workspace-ai-research-chat-thread {
+    padding: 8px 12px 16px;
+  }
+
+  .workspace-ai-research-composer {
+    width: calc(100% - 24px);
+    margin: 0 12px 14px;
+  }
+}

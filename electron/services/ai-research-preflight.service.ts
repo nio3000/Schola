@@ -1,20 +1,23 @@
 /**
- * AI Research Preflight Service — Phase 5-2-IMP-3.
+ * AI Research Preflight Service — Phase 5-2-IMP-3 + Phase 5-5-C-IMP-2.
  *
- * Enforces the mandatory 10-step preflight gate before any provider invocation.
+ * Enforces the mandatory preflight gate before any provider invocation.
  * Must pass ALL gates before a task can be executed.
  *
  * Gate sequence:
  *   1. Provider enabled check
  *   2. API Key / local-free check
- *   3. Privacy consent check
- *   4. Context send policy check
- *   5. ContextPack ready check
- *   6. Context confirmation check
- *   7. User explicit run action
- *   8. Main process provider gateway
- *   9. Error sanitize
- *   10. Metadata-only logging
+ *   3. Unsupported provider check (IMP-2)
+ *   4. Selected model check (IMP-2)
+ *   5. Privacy consent check
+ *   6. Context send policy check
+ *   7. ContextPack ready check
+ *   8. Context confirmation check
+ *   9. Instruction not empty check (IMP-2)
+ *   10. User explicit run action
+ *   11. Main process provider gateway
+ *   12. Error sanitize
+ *   13. Metadata-only logging
  *
  * NEVER allows provider invocation from renderer.
  * NEVER bypasses context confirmation.
@@ -40,6 +43,9 @@ import {
 } from './settings-store.service';
 import { getProviderKeyStatus } from './provider-key-store.service';
 
+// Phase 5-5-C-IMP-2: Providers that are explicitly unsupported.
+const UNSUPPORTED_PROVIDER_IDS = new Set<string>(['anthropic']);
+
 // ── Preflight Gate ─────────────────────────────────
 
 /**
@@ -61,6 +67,12 @@ export function runInvocationPreflight(
     // Step 1: Provider enabled check
     if (!isProviderEnabled(providerId)) {
       return buildBlockedResult('provider_disabled', '提供者未启用。请在设置中启用该提供者。');
+    }
+
+    // Step 1b (Phase 5-5-C-IMP-2): Unsupported provider gate
+    const unsupportedCheck = checkUnsupportedProvider(providerId);
+    if (!unsupportedCheck.passed) {
+      return unsupportedCheck;
     }
 
     // Step 2: API Key / local-free check
@@ -212,4 +224,19 @@ function buildBlockedResult(
     contextConfirmed: false,
     userExplicitRun: false,
   };
+}
+
+// Phase 5-5-C-IMP-2: Providers not yet implemented.
+const UNSUPPORTED_PREFLIGHT_IDS = new Set<string>(['anthropic']);
+
+function checkUnsupportedProvider(providerId: string): InvocationPreflightResult {
+  if (UNSUPPORTED_PREFLIGHT_IDS.has(providerId)) {
+    const preset = getProviderPreset(providerId);
+    const name = preset?.displayName ?? providerId;
+    return buildBlockedResult(
+      'unsupported_provider',
+      `提供者 "${name}" 当前不支持。该提供者的原生 API 尚未实现，将在后续版本中支持。`,
+    );
+  }
+  return { passed: true, providerReady: false, privacyConsented: false, contextConfirmed: false, userExplicitRun: false };
 }

@@ -3,10 +3,16 @@ import type {
   AIResearchTaskStatus,
   BuildContextPackInput,
   CancelTaskInput,
+  ChatChunk,
+  ConfirmContextPackInput,
+  ContextConfirmationSnapshot,
   CreateTaskDraftInput,
   ProviderReadiness,
   ResearchContextPreview,
   RunConfirmedTaskInput,
+  SaveArtifactDraftInput,
+  SaveArtifactDraftResult,
+  SubscribeTaskCallbacks,
 } from '../contracts/ai-research.types';
 
 function getAIResearchApi() {
@@ -16,7 +22,9 @@ function getAIResearchApi() {
   return window.schola.aiResearch;
 }
 
-export async function getProviderReadiness(providerId?: string): Promise<readonly ProviderReadiness[]> {
+export async function getProviderReadiness(
+  providerId?: string,
+): Promise<readonly ProviderReadiness[]> {
   try {
     return getAIResearchApi().getProviderReadiness(providerId);
   } catch {
@@ -24,7 +32,9 @@ export async function getProviderReadiness(providerId?: string): Promise<readonl
   }
 }
 
-export async function buildContextPack(input: BuildContextPackInput): Promise<ResearchContextPreview> {
+export async function buildContextPack(
+  input: BuildContextPackInput,
+): Promise<ResearchContextPreview> {
   return getAIResearchApi().buildContextPack(input);
 }
 
@@ -32,11 +42,19 @@ export async function previewContextPack(contextPackId: string): Promise<Researc
   return getAIResearchApi().previewContextPack(contextPackId);
 }
 
+export async function confirmContextPack(
+  input: ConfirmContextPackInput,
+): Promise<ContextConfirmationSnapshot> {
+  return getAIResearchApi().confirmContextPack(input);
+}
+
 export async function createTaskDraft(input: CreateTaskDraftInput): Promise<AIResearchTaskStatus> {
   return getAIResearchApi().createTaskDraft(input);
 }
 
-export async function runConfirmedTask(input: RunConfirmedTaskInput): Promise<AIResearchTaskStatus> {
+export async function runConfirmedTask(
+  input: RunConfirmedTaskInput,
+): Promise<AIResearchTaskStatus> {
   return getAIResearchApi().runConfirmedTask(input);
 }
 
@@ -59,3 +77,15 @@ export async function clearTaskResult(taskId: string): Promise<void> {
 export async function discardArtifact(artifactId: string): Promise<void> {
   return getAIResearchApi().discardArtifact(artifactId);
 }
+
+export async function saveArtifactDraft(
+  input: SaveArtifactDraftInput,
+): Promise<SaveArtifactDraftResult> {
+  return getAIResearchApi().saveArtifactDraft(input);
+}
+
+export function subscribeTask(taskId: string, callbacks: SubscribeTaskCallbacks): () => void {
+  return getAIResearchApi().subscribeTask(taskId, callbacks);
+}
+
+export type { ChatChunk, SubscribeTaskCallbacks };

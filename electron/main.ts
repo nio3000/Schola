@@ -15,7 +15,11 @@ import { registerSettingsIpc } from './ipc/settings.ipc';
 import { registerAIResearchIpc } from './ipc/ai-research.ipc';
 import { registerResourceReadIpc } from './ipc/resource-read.ipc';
 import { registerResourceImportIpc } from './ipc/resource-import.ipc';
-import { load as loadRuntimeStatusStore, reconcile as reconcileRuntimeStatus } from './services/runtime-pack/runtime-pack-status-store.service';
+import { abortAllPendingTasks } from './services/ai-research-task.service';
+import {
+  load as loadRuntimeStatusStore,
+  reconcile as reconcileRuntimeStatus,
+} from './services/runtime-pack/runtime-pack-status-store.service';
 // Phase 3-4-F0: probeAllReservedEngines disabled — Docling bundled runtime paused.
 // Uncomment when re-enabling reserved engine probes.
 // import { probeAllReservedEngines } from './services/engines/import/import-engine-capability-probe.service';
@@ -98,14 +102,14 @@ function handleWindowLoadFailure(error: unknown): void {
 
   console.error(
     `[schola:main] Load failure — ` +
-    `target=${loadTarget} ` +
-    `window=${windowId} ` +
-    `domReady=${windowDomReady} ` +
-    `didFinishLoad=${windowDidFinishLoad} ` +
-    `lastEvent=${lastLifecycleEvent} ` +
-    `code=${code} ` +
-    `errno=${errno} ` +
-    `message=${message}`,
+      `target=${loadTarget} ` +
+      `window=${windowId} ` +
+      `domReady=${windowDomReady} ` +
+      `didFinishLoad=${windowDidFinishLoad} ` +
+      `lastEvent=${lastLifecycleEvent} ` +
+      `code=${code} ` +
+      `errno=${errno} ` +
+      `message=${message}`,
   );
 
   app.quit();
@@ -158,9 +162,11 @@ function createMainWindow(): BrowserWindow {
     }
   });
 
-  createdWindow.webContents.session.setPermissionRequestHandler((_webContents, _permission, callback) => {
-    callback(false);
-  });
+  createdWindow.webContents.session.setPermissionRequestHandler(
+    (_webContents, _permission, callback) => {
+      callback(false);
+    },
+  );
 
   const loadPromise = VITE_DEV_SERVER_URL
     ? createdWindow.loadURL(VITE_DEV_SERVER_URL)
@@ -174,9 +180,7 @@ function createMainWindow(): BrowserWindow {
 
   createdWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(
-      `[schola:main] Preload error (path=${preloadPath}, error=${message})`,
-    );
+    console.error(`[schola:main] Preload error (path=${preloadPath}, error=${message})`);
     lastLifecycleEvent = 'preload-error';
   });
 
@@ -188,33 +192,36 @@ function createMainWindow(): BrowserWindow {
     console.log(`[schola:main] Did-finish-load (window=${mainWindow?.id ?? '?'})`);
   });
 
-  createdWindow.webContents.on('did-fail-provisional-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-    console.error(
-      `[schola:main] Did-fail-provisional-load ` +
-      `(errorCode=${errorCode}, description=${errorDescription}, ` +
-      `validatedURL=${validatedURL}, isMainFrame=${String(isMainFrame)})`,
-    );
-    lastLifecycleEvent = 'did-fail-provisional-load';
-  });
-
   createdWindow.webContents.on(
-    'render-process-gone',
-    (_event, details) => {
+    'did-fail-provisional-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
       console.error(
-        `[schola:main] Window render-process-gone (reason=${details.reason}, exitCode=${details.exitCode})`,
+        `[schola:main] Did-fail-provisional-load ` +
+          `(errorCode=${errorCode}, description=${errorDescription}, ` +
+          `validatedURL=${validatedURL}, isMainFrame=${String(isMainFrame)})`,
       );
-      lastLifecycleEvent = 'render-process-gone';
+      lastLifecycleEvent = 'did-fail-provisional-load';
     },
   );
 
-  createdWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+  createdWindow.webContents.on('render-process-gone', (_event, details) => {
     console.error(
-      `[schola:main] Did-fail-load ` +
-      `(errorCode=${errorCode}, description=${errorDescription}, ` +
-      `validatedURL=${validatedURL}, isMainFrame=${String(isMainFrame)})`,
+      `[schola:main] Window render-process-gone (reason=${details.reason}, exitCode=${details.exitCode})`,
     );
-    lastLifecycleEvent = 'did-fail-load';
+    lastLifecycleEvent = 'render-process-gone';
   });
+
+  createdWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      console.error(
+        `[schola:main] Did-fail-load ` +
+          `(errorCode=${errorCode}, description=${errorDescription}, ` +
+          `validatedURL=${validatedURL}, isMainFrame=${String(isMainFrame)})`,
+      );
+      lastLifecycleEvent = 'did-fail-load';
+    },
+  );
 
   createdWindow.webContents.on('unresponsive', () => {
     console.warn(`[schola:main] Window unresponsive (window=${mainWindow?.id ?? '?'})`);
@@ -247,24 +254,24 @@ registerIndexQueryIpc();
 registerGraphQueryIpc();
 registerImportIpc();
 registerExportIpc();
-  registerArtifactIpc();
-  // Phase 4-0-B-IMP-4: Runtime Pack IPC deferred.
-  // Runtime Pack hidden — IPC registration paused.
-  // Re-evaluate when Plugin Manager design phase begins (Phase 4-0-D).
-  // registerRuntimePackIpc();
-  registerPreviewExportIpc();
-  registerResourceReadIpc();
-  registerResourceImportIpc();
-  registerSettingsIpc();
-  registerAIResearchIpc();
+registerArtifactIpc();
+// Phase 4-0-B-IMP-4: Runtime Pack IPC deferred.
+// Runtime Pack hidden — IPC registration paused.
+// Re-evaluate when Plugin Manager design phase begins (Phase 4-0-D).
+// registerRuntimePackIpc();
+registerPreviewExportIpc();
+registerResourceReadIpc();
+registerResourceImportIpc();
+registerSettingsIpc();
+registerAIResearchIpc();
 
-  // Phase 4-0-B-IMP-4: Runtime Pack status store deferred.
-  // loadRuntimeStatusStore().then(() => {
-  //   reconcileRuntimeStatus();
-  // }).catch((err: unknown) => {
-  //   const msg = err instanceof Error ? err.message : String(err);
-  //   console.error(`[schola:main] Failed to load runtime status store: ${msg}`);
-  // });
+// Phase 4-0-B-IMP-4: Runtime Pack status store deferred.
+// loadRuntimeStatusStore().then(() => {
+//   reconcileRuntimeStatus();
+// }).catch((err: unknown) => {
+//   const msg = err instanceof Error ? err.message : String(err);
+//   console.error(`[schola:main] Failed to load runtime status store: ${msg}`);
+// });
 
 app.whenReady().then(() => {
   perfLog(`[perf:startup] appReady=${Date.now() - PROCESS_START_AT}ms`);
@@ -298,12 +305,12 @@ app.whenReady().then(() => {
   //   console.warn('[schola:main] PyMuPDF4LLM core engine probe failed:', err instanceof Error ? err.message : String(err));
   // });
 
-    // Phase 3-4-K: Marker external runtime probe MOVED to on-demand.
-    // Probe is now triggered by import:check-enhanced-runtime IPC handler
-    // (import-engine-capability-probe.service.ts → getCachedEnhancedDiagnostics).
-    // This avoids blocking app startup with Python discovery + import check.
+  // Phase 3-4-K: Marker external runtime probe MOVED to on-demand.
+  // Probe is now triggered by import:check-enhanced-runtime IPC handler
+  // (import-engine-capability-probe.service.ts → getCachedEnhancedDiagnostics).
+  // This avoids blocking app startup with Python discovery + import check.
 
-    app.on('activate', () => {
+  app.on('activate', () => {
     if (mainWindow === null) {
       mainWindow = createMainWindow();
     }
@@ -319,6 +326,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   console.log('[schola:main] Before-quit');
+  abortAllPendingTasks();
   stopAllWatchers();
   closeAllIndexDbs();
 });

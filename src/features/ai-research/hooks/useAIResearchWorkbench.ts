@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type {
   AIArtifactDraft,
   AIResearchTaskState,
@@ -15,9 +15,12 @@ import {
   buildContextPack,
   cancelTask,
   createTaskDraft,
+  discardArtifact,
   getProviderReadiness,
   getTaskResult,
   runConfirmedTask,
+  saveArtifactDraft,
+  subscribeTask,
 } from '../../../lib/platform/ai-research-api';
 
 export type AIResearchWorkbenchStage =
@@ -27,8 +30,10 @@ export type AIResearchWorkbenchStage =
   | 'drafting'
   | 'draft_created'
   | 'running'
+  | 'streaming'
   | 'completed'
-  | 'failed';
+  | 'failed'
+  | 'cancelled';
 
 export interface UseAIResearchWorkbenchInput {
   readonly vaultId: string | null;
@@ -37,8 +42,28 @@ export interface UseAIResearchWorkbenchInput {
 
 function toSourceType(relativePath: string): ContextSourceRef['sourceType'] | null {
   const lower = relativePath.toLowerCase();
-  if (lower.endsWith('.pdf')) return 'pdf';
   if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'markdown';
+  if (lower.endsWith('.pdf')) return 'pdf';
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html';
+  if (lower.endsWith('.txt')) return 'txt';
+  if (lower.endsWith('.csv')) return 'csv';
+  if (lower.endsWith('.docx')) return 'docx';
+  if (lower.endsWith('.xlsx')) return 'xlsx';
+  if (lower.endsWith('.doc')) return 'doc';
+  if (lower.endsWith('.xls')) return 'xls';
+  if (lower.endsWith('.pptx') || lower.endsWith('.ppt')) return 'pptx';
+  // All other supported extensions → 'other' (metadata only)
+  if (
+    lower.endsWith('.json') ||
+    lower.endsWith('.yaml') ||
+    lower.endsWith('.yml') ||
+    lower.endsWith('.tex') ||
+    lower.endsWith('.bib') ||
+    lower.endsWith('.ris') ||
+    lower.endsWith('.rtf') ||
+    lower.endsWith('.tsv')
+  )
+    return 'other';
   return null;
 }
 
@@ -132,6 +157,8 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
   const [contextPackPreview, setContextPackPreview] = useState<ResearchContextPreview | null>(null);
   const [currentTask, setCurrentTask] = useState<AIResearchTaskStatus | null>(null);
   const [currentArtifact, setCurrentArtifact] = useState<AIArtifactDraft | null>(null);
+  const [streamingResponse, setStreamingResponse] = useState('');
+  const [savedArtifactPath, setSavedArtifactPath] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<readonly AIResearchWarning[]>([]);
   const [contextConfirmed, setContextConfirmed] = useState(false);
   const [privacyConsented, setPrivacyConsented] = useState(false);
@@ -139,6 +166,8 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stateRevision, bumpStateRevision] = useReducer((value: number) => value + 1, 0);
+  const unsubscribeTaskRef = useRef<(() => void) | null>(null);
+  const runInFlightRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,15 +195,37 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
 
   const model = selectedModel ?? selectedProvider?.models[0]?.id ?? '未选择模型';
 
+  const cancelTaskIfActive = useCallback((task: AIResearchTaskStatus | null) => {
+    if (!task || (task.state !== 'running' && task.state !== 'streaming')) return;
+    void cancelTask({ taskId: task.taskId }).catch(() => undefined);
+  }, []);
+
   const changeProvider = useCallback(
     (providerId: string) => {
+      cancelTaskIfActive(currentTask);
+      unsubscribeTaskRef.current?.();
+      unsubscribeTaskRef.current = null;
       const provider = providerReadiness.find((item) => item.providerId === providerId);
       setSelectedProviderId(providerId);
       setSelectedModel(provider?.models[0]?.id ?? null);
       setContextPackPreview(null);
       setContextConfirmed(false);
+      setStreamingResponse('');
     },
-    [providerReadiness],
+    [cancelTaskIfActive, currentTask, providerReadiness],
+  );
+
+  const changeModel = useCallback(
+    (modelId: string | null) => {
+      cancelTaskIfActive(currentTask);
+      unsubscribeTaskRef.current?.();
+      unsubscribeTaskRef.current = null;
+      setSelectedModel(modelId);
+      setContextPackPreview(null);
+      setContextConfirmed(false);
+      setStreamingResponse('');
+    },
+    [cancelTaskIfActive, currentTask],
   );
 
   const preflightResult = useMemo(
@@ -201,6 +252,8 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
       setContextConfirmed(false);
       setCurrentTask(null);
       setCurrentArtifact(null);
+      setSavedArtifactPath(null);
+      setStreamingResponse('');
       setStage(next.length > 0 ? 'sources_selected' : 'idle');
       bumpStateRevision();
       return next;
@@ -208,7 +261,7 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
   }, []);
 
   const buildPack = useCallback(async () => {
-    if (!vaultId || selectedSources.length === 0 || !selectedProvider) return;
+    if (!vaultId || selectedSources.length === 0 || !selectedProvider) return false;
     setLoading(true);
     setError(null);
     try {
@@ -229,48 +282,79 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
       setContextConfirmed(false);
       setStage('pack_built');
       bumpStateRevision();
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : '构建上下文包失败。');
       setStage('failed');
+      return false;
     } finally {
       setLoading(false);
     }
   }, [model, selectedProvider, selectedSources, vaultId]);
 
-  const createDraft = useCallback(async () => {
-    if (!contextPackPreview || !selectedProvider || instruction.trim().length === 0) return;
-    setLoading(true);
-    setError(null);
-    setStage('drafting');
-    try {
-      const task = await createTaskDraft({
-        taskType,
-        contextPackId: contextPackPreview.packId,
-        instruction: instruction.trim(),
-        providerId: selectedProvider.providerId,
-        model,
-      });
-      setCurrentTask(task);
-      setStage('draft_created');
-      bumpStateRevision();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '创建草稿任务失败。');
-      setStage('failed');
-    } finally {
-      setLoading(false);
-    }
-  }, [contextPackPreview, instruction, model, selectedProvider, taskType]);
+  const createDraft = useCallback(
+    async (skillPromptTemplate?: string) => {
+      if (!contextPackPreview || !selectedProvider || instruction.trim().length === 0) return;
+      setLoading(true);
+      setError(null);
+      setStage('drafting');
+      try {
+        const task = await createTaskDraft({
+          taskType,
+          contextPackId: contextPackPreview.packId,
+          instruction: instruction.trim(),
+          providerId: selectedProvider.providerId,
+          model,
+          skillPromptTemplate,
+        });
+        setCurrentTask(task);
+        setCurrentArtifact(null);
+        setSavedArtifactPath(null);
+        setStreamingResponse('');
+        setStage('draft_created');
+        bumpStateRevision();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '创建草稿任务失败。');
+        setStage('failed');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [contextPackPreview, instruction, model, selectedProvider, taskType],
+  );
 
   const runTask = useCallback(async () => {
-    if (!currentTask || !preflightResult.passed) return;
+    if (!currentTask || !preflightResult.passed || runInFlightRef.current) return;
+    if (currentTask.state === 'running' || currentTask.state === 'streaming') return;
+    runInFlightRef.current = true;
     setLoading(true);
     setError(null);
     setStage('running');
+    setStreamingResponse('');
+    unsubscribeTaskRef.current?.();
+    unsubscribeTaskRef.current = subscribeTask(currentTask.taskId, {
+      onChunk: (chunk) => {
+        setCurrentTask((task) =>
+          task && task.taskId === chunk.taskId ? { ...task, state: 'streaming' } : task,
+        );
+        setStage('streaming');
+        setStreamingResponse((current) => `${current}${chunk.content}`);
+      },
+      onError: (chunk) => {
+        setError(chunk.error.message);
+        setStage('failed');
+      },
+    });
     try {
       const runningTask = await runConfirmedTask({ taskId: currentTask.taskId });
       setCurrentTask(runningTask);
+      if (runningTask.state === 'cancelled') {
+        setStage('cancelled');
+        return;
+      }
       const result = await getTaskResult(runningTask.taskId);
       setCurrentArtifact(result.artifact ?? null);
+      setSavedArtifactPath(result.artifact?.savedRelativePath ?? null);
       setWarnings([...result.warnings, ...(result.artifact?.warnings ?? [])]);
       setStage(result.state === 'failed' ? 'failed' : 'completed');
       setCurrentTask({ ...runningTask, state: result.state });
@@ -280,6 +364,9 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
       setStage('failed');
     } finally {
       setLoading(false);
+      runInFlightRef.current = false;
+      unsubscribeTaskRef.current?.();
+      unsubscribeTaskRef.current = null;
     }
   }, [currentTask, preflightResult.passed]);
 
@@ -289,7 +376,9 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
     try {
       const cancelledTask = await cancelTask({ taskId: currentTask.taskId });
       setCurrentTask(cancelledTask);
-      setStage('failed');
+      setStage('cancelled');
+      unsubscribeTaskRef.current?.();
+      unsubscribeTaskRef.current = null;
       bumpStateRevision();
     } catch (err) {
       setError(err instanceof Error ? err.message : '取消任务失败。');
@@ -297,6 +386,56 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
       setLoading(false);
     }
   }, [currentTask]);
+
+  const saveCurrentArtifact = useCallback(
+    async (targetRelativePath: string, overwriteConfirmed: boolean) => {
+      if (!vaultId || !currentArtifact) return null;
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await saveArtifactDraft({
+          vaultId,
+          artifactId: currentArtifact.artifactId,
+          targetRelativePath,
+          overwriteConfirmed,
+        });
+        setCurrentArtifact(result.artifact);
+        setSavedArtifactPath(result.relativePath);
+        bumpStateRevision();
+        return result;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '保存草稿失败。');
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentArtifact, vaultId],
+  );
+
+  const discardCurrentArtifact = useCallback(async () => {
+    if (!currentArtifact) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await discardArtifact(currentArtifact.artifactId);
+      setCurrentArtifact(null);
+      setSavedArtifactPath(null);
+      bumpStateRevision();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '丢弃草稿失败。');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentArtifact]);
+
+  useEffect(
+    () => () => {
+      unsubscribeTaskRef.current?.();
+      unsubscribeTaskRef.current = null;
+    },
+    [],
+  );
 
   return {
     availableSources,
@@ -308,6 +447,8 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
     contextPackPreview,
     currentTask,
     currentArtifact,
+    streamingResponse,
+    savedArtifactPath,
     warnings,
     preflightResult,
     contextConfirmed,
@@ -321,7 +462,7 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
     setTaskType,
     setInstruction,
     changeProvider,
-    setSelectedModel,
+    setSelectedModel: changeModel,
     setContextConfirmed,
     setPrivacyConsented,
     toggleSource,
@@ -329,5 +470,7 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
     createDraft,
     runTask,
     cancelCurrentTask,
+    saveCurrentArtifact,
+    discardCurrentArtifact,
   };
 }
