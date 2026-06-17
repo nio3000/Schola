@@ -1,0 +1,117 @@
+/* Phase 5-5-C-POST-SYNC-AI-RESEARCH-UX-FIX: Markdown rendering styles */
+.ai-research-markdown-view {
+  max-width: 760px;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  line-height: 1.75;
+  word-break: break-word;
+}
+
+.ai-research-markdown-view h1,
+.ai-research-markdown-view h2,
+.ai-research-markdown-view h3,
+.ai-research-markdown-view h4,
+.ai-research-markdown-view h5,
+.ai-research-markdown-view h6 {
+  margin: 1.2em 0 0.5em;
+  color: var(--text-primary);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ai-research-markdown-view h1 { font-size: 1.5rem; border-bottom: 1px solid var(--border-light, #e5e7eb); padding-bottom: 0.3em; }
+.ai-research-markdown-view h2 { font-size: 1.3rem; }
+.ai-research-markdown-view h3 { font-size: 1.1rem; }
+.ai-research-markdown-view h4 { font-size: 1rem; }
+
+.ai-research-markdown-view p {
+  margin: 0.6em 0;
+}
+
+.ai-research-markdown-view strong,
+.ai-research-markdown-view b {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ai-research-markdown-view em,
+.ai-research-markdown-view i {
+  font-style: italic;
+}
+
+.ai-research-markdown-view ul,
+.ai-research-markdown-view ol {
+  margin: 0.6em 0;
+  padding-left: 1.6em;
+}
+
+.ai-research-markdown-view li {
+  margin: 0.25em 0;
+}
+
+.ai-research-markdown-view blockquote {
+  margin: 0.8em 0;
+  padding: 0.4em 1em;
+  border-left: 3px solid var(--border-strong, #9ca3af);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: 0 4px 4px 0;
+}
+
+.ai-research-markdown-view code {
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  background: var(--bg-tertiary, #f3f4f6);
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.84em;
+}
+
+.ai-research-markdown-view pre {
+  margin: 0.8em 0;
+  padding: 1em;
+  border-radius: 6px;
+  background: var(--bg-secondary, #f9fafb);
+  overflow-x: auto;
+}
+
+.ai-research-markdown-view pre code {
+  padding: 0;
+  background: none;
+  font-size: 0.82em;
+}
+
+.ai-research-markdown-view table {
+  width: 100%;
+  margin: 0.8em 0;
+  border-collapse: collapse;
+  font-size: 0.84em;
+}
+
+.ai-research-markdown-view th,
+.ai-research-markdown-view td {
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--border-light, #e5e7eb);
+  text-align: left;
+}
+
+.ai-research-markdown-view th {
+  background: var(--bg-tertiary, #f3f4f6);
+  font-weight: 700;
+}
+
+.ai-research-markdown-view a {
+  color: var(--accent, #2563eb);
+  text-decoration: underline;
+}
+
+.ai-research-markdown-view hr {
+  margin: 1.2em 0;
+  border: 0;
+  border-top: 1px solid var(--border-light, #e5e7eb);
+}
+
+.ai-research-markdown-view img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}

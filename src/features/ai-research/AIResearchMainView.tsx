@@ -22,9 +22,13 @@ import { ArtifactSaveDialog } from './components/ArtifactSaveDialog';
 import { EvidenceList } from './components/EvidenceList';
 import { ContextConfirmationModal } from './components/ContextConfirmationModal';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
+import { AIResearchMarkdownView } from './components/AIResearchMarkdownView';
 import {
   useAIResearchWorkbench,
   type AIResearchWorkbenchStage,
+  type AIResearchChatMessage,
+  type AIResearchUserMessage,
+  type AIResearchAssistantMessage,
 } from './hooks/useAIResearchWorkbench';
 
 export interface AIResearchMainViewProps {
@@ -40,6 +44,14 @@ function getProviderStatusLabel(provider: ProviderReadiness | null): string {
   if (!provider.keyConfigured) return '缺少密钥';
   if (provider.enabled === false) return '不可用';
   return '不可用';
+}
+
+/** Phase 5-5-C-POST-SYNC-MODEL-BINDING-FIX: human-readable labels for dropdown disabled items. */
+function getModelDisabledLabel(provider: ProviderReadiness): string {
+  if (provider.ready || provider.localFreeReady) return '';
+  if (!provider.keyConfigured) return ' (缺少密钥)';
+  if (provider.enabled === false) return ' (未启用)';
+  return ' (不可用)';
 }
 
 function formatModelValue(providerId: string, modelId: string): string {
@@ -110,6 +122,13 @@ export function AIResearchMainView({
   const selectedModelValue = workbench.selectedProvider
     ? formatModelValue(workbench.selectedProvider.providerId, workbench.model)
     : '';
+  const isNoContext = workbench.selectedSources.length === 0;
+  const contextModeLabel = isNoContext ? '无上下文模式' : '上下文模式';
+  const contextDetailLabel = isNoContext
+    ? '无上下文模式：本次只会发送你的输入，不会发送 Vault 文件。回答无法生成来源证据。'
+    : workbench.contextConfirmed
+      ? '上下文已确认：本次只发送已确认的 ContextPack，不会发送整个 Vault。'
+      : '待确认上下文：请选择文件并确认 ContextPack 后再生成。';
   const currentSource = selectedFile
     ? workbench.availableSources.find((source) => source.relativePath === selectedFile)
     : null;
@@ -123,6 +142,12 @@ export function AIResearchMainView({
         : workbench.stage === 'cancelled'
           ? '任务已取消。'
           : '尚未生成回复。请选择上下文，确认本次模型与 Skill 后输入任务。');
+
+  const responsePlain = workbench.currentArtifact?.content
+    ? workbench.currentArtifact.content
+    : workbench.streamingResponse.length > 0
+      ? workbench.streamingResponse
+      : '';
   const contextTokenEstimate =
     workbench.contextPackPreview?.tokenEstimate.totalTokens ??
     workbench.selectedSources.reduce(
@@ -293,29 +318,97 @@ export function AIResearchMainView({
           className="workspace-ai-research-column workspace-ai-research-response-column workspace-ai-research-chat-column"
           data-testid="ai-research-response-column"
         >
-          <section className="workspace-ai-research-chat-thread">
-            <div className="workspace-ai-research-chat-message workspace-ai-research-chat-message-system">
-              <span>AI 研究工作台</span>
-              <p>已准备好基于你选择的 Vault 文件生成草稿。模型输出不会自动写入 Vault。</p>
-            </div>
-            <div className="workspace-ai-research-card workspace-ai-research-response-card">
-              <div className="workspace-ai-research-card-header workspace-ai-research-compact-header">
-                <div>
-                  <p className="workspace-ai-research-kicker">Response</p>
-                  <h3 className="workspace-ai-research-card-title">模型回复</h3>
+          <section className="workspace-ai-research-chat-thread" data-testid="ai-research-chat-thread">
+            {workbench.chatMessages.length === 0 ? (
+              <div className="workspace-ai-research-chat-empty">
+                <div className="workspace-ai-research-chat-message workspace-ai-research-chat-message-system">
+                  <span>AI 研究工作台</span>
+                  <p>
+                    {isNoContext
+                      ? '无上下文模式：本次只会发送你的输入，不会发送 Vault 文件。'
+                      : '已准备好基于你选择的 Vault 文件生成草稿。模型输出不会自动写入 Vault。'}
+                  </p>
                 </div>
-                <span
-                  className={`workspace-ai-research-status ${
-                    workbench.selectedProvider?.ready
-                      ? 'workspace-ai-research-status-ready'
-                      : 'workspace-ai-research-status-blocked'
-                  }`}
-                >
-                  {getProviderStatusLabel(workbench.selectedProvider)}
-                </span>
               </div>
-              <div className="workspace-ai-research-response-preview">{responseText}</div>
-            </div>
+            ) : (
+              workbench.chatMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`ai-research-chat-msg ${
+                    msg.role === 'user'
+                      ? 'ai-research-chat-msg-user'
+                      : 'ai-research-chat-msg-assistant'
+                  }`}
+                  data-testid={`ai-research-chat-msg-${msg.role}`}
+                >
+                  {msg.role === 'user' ? (
+                    <div className="ai-research-chat-msg-body">
+                      <div className="ai-research-chat-msg-header">
+                        <span className="ai-research-chat-msg-role">你</span>
+                        <span className="ai-research-chat-msg-time">
+                          {new Date(msg.createdAt).toLocaleTimeString('zh-CN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        <span
+                          className={`ai-research-chat-msg-chip ${
+                            msg.contextMode === 'none'
+                              ? 'ai-research-chat-msg-chip-nocontext'
+                              : 'ai-research-chat-msg-chip-context'
+                          }`}
+                        >
+                          {msg.contextMode === 'none' ? '无上下文' : '上下文已确认'}
+                        </span>
+                      </div>
+                      <p className="ai-research-chat-msg-content">{msg.content}</p>
+                    </div>
+                  ) : (
+                    <div className="ai-research-chat-msg-body">
+                      <div className="ai-research-chat-msg-header">
+                        <span className="ai-research-chat-msg-role">
+                          {msg.providerId} / {msg.model}
+                        </span>
+                        <span
+                          className={`ai-research-chat-msg-status ai-research-chat-msg-status-${msg.status}`}
+                        >
+                          {msg.status === 'streaming'
+                            ? '生成中'
+                            : msg.status === 'completed'
+                              ? '已完成'
+                              : msg.status === 'cancelled'
+                                ? '已取消'
+                                : '出错'}
+                        </span>
+                      </div>
+                      {msg.status === 'failed' && msg.error ? (
+                        <p className="ai-research-chat-msg-error">
+                          {msg.error}
+                        </p>
+                      ) : null}
+                      {msg.content.length > 0 ? (
+                        <AIResearchMarkdownView
+                          className="ai-research-chat-msg-markdown"
+                          content={msg.content}
+                        />
+                      ) : msg.status === 'streaming' ? (
+                        <p className="ai-research-chat-msg-empty">等待模型回复...</p>
+                      ) : msg.status === 'cancelled' ? (
+                        <p className="ai-research-chat-msg-empty">任务已取消。</p>
+                      ) : null}
+                      {msg.evidenceRefs && msg.evidenceRefs.length > 0 ? (
+                        <details className="ai-research-chat-msg-evidence">
+                          <summary>
+                            引用来源 ({msg.evidenceRefs.length})
+                          </summary>
+                          <EvidenceList evidence={msg.evidenceRefs} />
+                        </details>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </section>
 
           <section
@@ -331,9 +424,11 @@ export function AIResearchMainView({
                 value={workbench.instruction}
                 onChange={(event) => workbench.setInstruction(event.target.value)}
                 placeholder={
-                  workbench.contextConfirmed
-                    ? '输入研究问题、比较维度或草稿要求'
-                    : '先选择并确认上下文，再输入要交给模型的任务'
+                  isNoContext
+                    ? '自由对话：输入任何问题，模型回答不会引用 Vault 文件。'
+                    : workbench.contextConfirmed
+                      ? '输入研究问题、比较维度或草稿要求'
+                      : '先选择并确认上下文，再输入要交给模型的任务'
                 }
               />
             </div>
@@ -348,65 +443,54 @@ export function AIResearchMainView({
                 +
               </button>
               <span className="workspace-ai-research-composer-context">
-                {workbench.selectedSources.length > 0
-                  ? `${workbench.selectedSources.length} 个文件`
-                  : '未选择文件'}
+                {isNoContext ? '无上下文 · 自由对话' : `${workbench.selectedSources.length} 个文件`}
               </span>
               <span
                 className={`workspace-ai-research-status ${
-                  workbench.contextConfirmed
+                  isNoContext || workbench.contextConfirmed
                     ? 'workspace-ai-research-status-ready'
                     : 'workspace-ai-research-status-blocked'
                 }`}
               >
-                {workbench.contextConfirmed ? '上下文已确认' : '待确认上下文'}
+                {isNoContext
+                  ? '无上下文对话'
+                  : workbench.contextConfirmed
+                    ? '上下文已确认'
+                    : '待确认上下文'}
               </span>
               <div className="workspace-ai-research-composer-spacer" />
 
-              {!workbench.currentTask ||
-              workbench.stage === 'pack_built' ||
-              workbench.stage === 'cancelled' ||
-              workbench.stage === 'failed' ? (
+              {/* Phase 5-5-C-POST-SYNC-AI-RESEARCH-SEND-FLOW-FIX:
+                  Single "send/stop" button replacing the draft+run two-step flow. */}
+              {workbench.stage === 'running' || workbench.stage === 'streaming' ? (
                 <button
                   type="button"
                   className="workspace-ai-research-primary-button"
-                  data-testid="ai-research-create-draft-btn"
-                  disabled={
-                    !workbench.contextConfirmed ||
-                    workbench.loading ||
-                    workbench.instruction.trim().length === 0
-                  }
+                  data-testid="ai-research-stop-btn"
+                  disabled={workbench.loading}
                   onClick={() => {
-                    void workbench.createDraft(selectedSkill?.promptTemplate);
+                    void workbench.cancelCurrentTask();
                   }}
                 >
-                  {workbench.loading && workbench.stage === 'drafting' ? '创建中...' : '生成草稿'}
+                  停止
                 </button>
               ) : (
                 <button
                   type="button"
                   className="workspace-ai-research-primary-button"
-                  data-testid="ai-research-run-btn"
+                  data-testid="ai-research-send-btn"
                   disabled={
+                    (!isNoContext && !workbench.contextConfirmed) ||
                     workbench.loading ||
-                    workbench.stage === 'running' ||
-                    workbench.stage === 'streaming' ||
-                    workbench.stage === 'completed'
+                    workbench.instruction.trim().length === 0
                   }
-                  onClick={() => {
-                    if (!workbench.privacyConsented) {
-                      setShowPrivacyConsent(true);
-                      return;
-                    }
-                    void workbench.runTask();
+                  onClick={async () => {
+                    const reason = await workbench.sendMessage(selectedSkill?.promptTemplate);
+                    if (reason === 'context') setShowConfirmation(true);
+                    if (reason === 'privacy') setShowPrivacyConsent(true);
                   }}
                 >
-                  {workbench.loading &&
-                  (workbench.stage === 'running' || workbench.stage === 'streaming')
-                    ? '生成中...'
-                    : workbench.stage === 'completed'
-                      ? '已完成'
-                      : '生成'}
+                  发送
                 </button>
               )}
               <button
@@ -465,16 +549,32 @@ export function AIResearchMainView({
                   {workbench.providerReadiness.length === 0 ? (
                     <option value="">未选择模型</option>
                   ) : null}
-                  {workbench.providerReadiness.flatMap((provider) =>
-                    provider.models.map((model) => (
-                      <option
-                        key={formatModelValue(provider.providerId, model.id)}
-                        value={formatModelValue(provider.providerId, model.id)}
-                      >
-                        {provider.preset.displayName} / {model.displayName}
-                      </option>
-                    )),
-                  )}
+                  {/* Phase 5-5-C-POST-SYNC-MODEL-BINDING-FIX:
+                      Sort ready providers first, then unavailable (disabled).
+                      User's selected model from Settings is the default. */}
+                  {[...workbench.providerReadiness]
+                    .sort((a, b) => {
+                      const aReady = a.ready || a.localFreeReady ? 0 : 1;
+                      const bReady = b.ready || b.localFreeReady ? 0 : 1;
+                      return aReady - bReady;
+                    })
+                    .flatMap((provider) =>
+                      provider.models.map((model) => {
+                        const isAvailable = provider.ready || provider.localFreeReady;
+                        const disabledLabel = isAvailable
+                          ? ''
+                          : getModelDisabledLabel(provider);
+                        return (
+                          <option
+                            key={formatModelValue(provider.providerId, model.id)}
+                            value={formatModelValue(provider.providerId, model.id)}
+                            disabled={!isAvailable}
+                          >
+                            {provider.preset.displayName} / {model.displayName}{disabledLabel}
+                          </option>
+                        );
+                      }),
+                    )}
                 </select>
               </label>
               <label className="workspace-ai-research-runtime-field">
@@ -534,7 +634,7 @@ export function AIResearchMainView({
               <span>人工审查</span>
               <strong>需要</strong>
               <span>上下文</span>
-              <strong>{workbench.contextConfirmed ? '已确认' : '未确认'}</strong>
+              <strong>{isNoContext ? '无' : (workbench.contextConfirmed ? '已确认' : '未确认')}</strong>
             </div>
           </section>
 
@@ -698,8 +798,13 @@ export function AIResearchMainView({
             });
             workbench.setPrivacyConsented(true);
             setShowPrivacyConsent(false);
+            // Phase 5-5-C-POST-SYNC-AI-RESEARCH-SEND-FLOW-FIX:
+            // Auto-continue the pending send after consent.
+            workbench.continuePendingSend();
           }}
-          onClose={() => setShowPrivacyConsent(false)}
+          onClose={() => {
+            setShowPrivacyConsent(false);
+          }}
         />
       )}
 

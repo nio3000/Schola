@@ -89,30 +89,35 @@ export function runInvocationPreflight(
       );
     }
 
-    // Step 4: Context send policy check
-    if (!isContextSendAllowed()) {
+    // Step 4: Context send policy check — only when context is present
+    if (contextPackPreview !== null && !isContextSendAllowed()) {
       return buildBlockedResult(
         'context_send_policy_denied',
         '上下文发送策略不允许发送。请先在隐私设置中调整上下文发送策略。',
       );
     }
 
-    // Step 5: ContextPack ready check
-    if (!contextPackPreview) {
-      return buildBlockedResult(
-        'context_pack_not_ready',
-        '尚未构建上下文包。请先选择文献来源并构建 ContextPack。',
-      );
-    }
+    // Phase 5-5-C-POST-SYNC-AI-RESEARCH-UX-FIX:
+    // When contextPackPreview is null, the user is in free conversation mode.
+    // ContextPack gates are not applicable. Skip Steps 5-6.
+    if (contextPackPreview !== null) {
+      // Step 5: ContextPack ready check
+      if (!contextPackPreview) {
+        return buildBlockedResult(
+          'context_pack_not_ready',
+          '尚未构建上下文包。请先选择文献来源并构建 ContextPack。',
+        );
+      }
 
-    // Step 6: Context confirmation check
-    const confirmationResult: ContextConfirmationResult =
-      checkContextConfirmation(contextConfirmation);
-    if (!confirmationResult.confirmed) {
-      return buildBlockedResult(
-        'context_not_confirmed',
-        '上下文尚未确认。请先确认要发送的文献范围和隐私影响。',
-      );
+      // Step 6: Context confirmation check
+      const confirmationResult: ContextConfirmationResult =
+        checkContextConfirmation(contextConfirmation);
+      if (!confirmationResult.confirmed) {
+        return buildBlockedResult(
+          'context_not_confirmed',
+          '上下文尚未确认。请先确认要发送的文献范围和隐私影响。',
+        );
+      }
     }
 
     // Step 7: User explicit run action

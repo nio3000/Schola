@@ -21,8 +21,9 @@ describe('AI Research streaming renderer guards', () => {
     const hook = readSource('src/features/ai-research/hooks/useAIResearchWorkbench.ts');
 
     expect(hook).toContain('runInFlightRef.current');
-    expect(hook).toContain("currentTask.state === 'running'");
-    expect(hook).toContain("currentTask.state === 'streaming'");
+    // Phase 5-5-C-POST-SYNC-AI-RESEARCH-SEND-FLOW-FIX: runTask uses task variable now.
+    expect(hook).toContain("task.state === 'running'");
+    expect(hook).toContain("task.state === 'streaming'");
   });
 
   it('AI-C-STREAM-008 unmount cleans up task subscription', () => {

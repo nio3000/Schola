@@ -85,6 +85,17 @@ export type ContextSourceType =
   | 'pptx'
   | 'other';
 
+/**
+ * Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX:
+ * Extraction status for context sources, indicating whether text content
+ * was successfully extracted from binary formats (e.g., PDF).
+ */
+export type ContextSourceExtractionStatus =
+  | 'text-extracted'
+  | 'metadata-only'
+  | 'extract-failed'
+  | 'unsupported';
+
 /** Reference to a selected context source file. No system absolute path. */
 export interface ContextSourceRef {
   /** Relative path from Vault root. */
@@ -146,6 +157,14 @@ export interface ContextPackFileEntry {
   readonly markdownHeadings?: readonly string[];
   /** For XLSX/CSV sources: sheet/row range metadata. */
   readonly sheetRange?: string;
+  /** Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: extraction status for binary sources. */
+  readonly extractionStatus?: ContextSourceExtractionStatus;
+  /** Characters extracted (for text-extracted sources). */
+  readonly extractedCharCount?: number;
+  /** Pages extracted (for PDF sources). */
+  readonly extractedPageCount?: number;
+  /** Human-readable extraction note. */
+  readonly extractionNote?: string;
 }
 
 /** Full ContextPack — built in main process, renderer-safe summary only. */

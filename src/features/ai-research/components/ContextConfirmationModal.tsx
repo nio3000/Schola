@@ -27,6 +27,16 @@ export function ContextConfirmationModal({ preview, onConfirm, onClose }: Contex
                 <span>模型</span><strong>{preview.model}</strong>
                 <span>截断文件</span><strong>{preview.truncatedFileCount}</strong>
               </div>
+              {preview.warnings.length > 0 && (
+                <div className="workspace-ai-research-modal-warnings">
+                  <p className="settings-dialog-options-title">注意事项</p>
+                  <ul className="workspace-ai-research-warning-list">
+                    {preview.warnings.map((warning, idx) => (
+                      <li key={idx} className="workspace-ai-research-warning-item">{warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ) : (
             <p className="settings-dialog-note">尚未构建上下文包草稿。</p>

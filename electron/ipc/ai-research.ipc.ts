@@ -90,9 +90,9 @@ export function registerAIResearchIpc(): void {
   // 2. buildContextPack
   ipcMain.handle(
     AI_RESEARCH_BUILD_CONTEXT_PACK_CHANNEL,
-    (_event, input: unknown): ResearchContextPreview => {
+    async (_event, input: unknown): Promise<ResearchContextPreview> => {
       try {
-        return buildContextPack(input as BuildContextPackInput);
+        return await buildContextPack(input as BuildContextPackInput);
       } catch (err) {
         const message = sanitizeIpcError(err);
         throw new Error(`AI_RESEARCH_ERROR: ${message}`);
@@ -180,9 +180,11 @@ export function registerAIResearchIpc(): void {
           throw new Error('TASK_NOT_FOUND: 任务未找到。');
         }
 
-        // Preflight gate (all 7 steps)
+        // Phase 5-5-C-POST-SYNC-AI-RESEARCH-UX-FIX:
+        // Support no-context free conversation mode (empty contextPackId).
+        const hasContext = request.contextPackId.length > 0;
         const contextConfirmation = getContextConfirmation();
-        const contextPackPreview = previewContextPack(request.contextPackId);
+        const contextPackPreview = hasContext ? previewContextPack(request.contextPackId) : null;
 
         const preflightResult = runInvocationPreflight(
           request.providerId,
@@ -215,12 +217,14 @@ export function registerAIResearchIpc(): void {
               ? skillPrompt
               : buildSystemPrompt(
                   request.taskType,
-                  contextPackPreview.selectedSourceRefs.map((s) => s.displayName),
+                  hasContext
+                    ? contextPackPreview!.selectedSourceRefs.map((s) => s.displayName)
+                    : [],
                 );
           const userPrompt = buildUserPrompt(request.instruction);
 
           // Phase 5-5-C-IMP-2: Build context messages from stored ContextPack content.
-          const contentMap = getContextPackContent(request.contextPackId);
+          const contentMap = hasContext ? getContextPackContent(request.contextPackId) : null;
           const contextMessages = contentMap ? buildContextMessages(contentMap) : [];
 
           const result = await executeStreamingInvocation(
@@ -231,7 +235,7 @@ export function registerAIResearchIpc(): void {
             systemPrompt,
             userPrompt,
             contextMessages,
-            contextPackPreview.fileCount,
+            contextPackPreview?.fileCount ?? 0,
             (content, index) => {
               markTaskStreaming(id);
               const chunk: ChatChunk = {

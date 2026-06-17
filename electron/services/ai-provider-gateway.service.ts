@@ -304,18 +304,31 @@ function resolveApiKey(providerId: string, preset: ProviderPreset): string {
 // ── Message Assembly ──────────────────────────────
 
 /**
+ * Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX:
  * Build context messages from ContextPack file contents.
- * Each file becomes a user message with a relative path label.
- * Only text-based files contribute content; binary/pdf files are skipped.
+ * Text-based files are sent as-is with a relative path label.
+ * PDF files with extracted text include extraction metadata in the label.
+ * Metadata-only / extract-failed files are skipped (empty content).
  */
 export function buildContextMessages(contents: Map<string, string>): ChatMessage[] {
   const messages: ChatMessage[] = [];
   for (const [relativePath, content] of contents) {
     if (content.trim().length === 0) continue;
-    messages.push({
-      role: 'user',
-      content: `[文件: ${relativePath}]\n\n${content}`,
-    });
+
+    const ext = relativePath.split('.').pop()?.toLowerCase() ?? '';
+    const isPdf = ext === 'pdf';
+
+    if (isPdf) {
+      messages.push({
+        role: 'user',
+        content: `[文件: ${relativePath}]\n类型: PDF\n提取状态: text-extracted\n注意: 以下为 PDF 文本提取结果，可能存在排版误差。\n\n${content}`,
+      });
+    } else {
+      messages.push({
+        role: 'user',
+        content: `[文件: ${relativePath}]\n\n${content}`,
+      });
+    }
   }
   return messages;
 }

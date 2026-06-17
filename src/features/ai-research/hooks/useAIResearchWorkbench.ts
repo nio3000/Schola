@@ -6,11 +6,13 @@ import type {
   AIResearchTaskType,
   AIResearchWarning,
   ContextSourceRef,
+  EvidenceRef,
   InvocationPreflightResult,
   ProviderReadiness,
   ResearchContextPreview,
 } from '../../../lib/contracts/ai-research.types';
 import type { FileEntry } from '../../../lib/contracts/vault.types';
+import type { AIPreferences } from '../../../lib/contracts/settings.types';
 import {
   buildContextPack,
   cancelTask,
@@ -22,6 +24,7 @@ import {
   saveArtifactDraft,
   subscribeTask,
 } from '../../../lib/platform/ai-research-api';
+import { getAIPreferences } from '../../../lib/platform/settings-api';
 
 export type AIResearchWorkbenchStage =
   | 'idle'
@@ -38,6 +41,40 @@ export type AIResearchWorkbenchStage =
 export interface UseAIResearchWorkbenchInput {
   readonly vaultId: string | null;
   readonly fileTree: readonly FileEntry[];
+}
+
+// Phase 5-5-C-POST-SYNC-AI-RESEARCH-CHAT-THREAD-FIX:
+// Conversation thread message types for GPT-like chat UX.
+export interface AIResearchUserMessage {
+  readonly id: string;
+  readonly role: 'user';
+  readonly content: string;
+  readonly createdAt: string;
+  readonly contextMode: 'none' | 'selected-context';
+  readonly contextPackId?: string;
+}
+
+export interface AIResearchAssistantMessage {
+  readonly id: string;
+  readonly role: 'assistant';
+  readonly taskId: string;
+  content: string;
+  readonly createdAt: string;
+  updatedAt: string;
+  status: 'streaming' | 'completed' | 'cancelled' | 'failed';
+  readonly providerId: string;
+  readonly model: string;
+  readonly error?: string;
+  readonly artifactDraftId?: string;
+  readonly evidenceRefs?: readonly EvidenceRef[];
+}
+
+export type AIResearchChatMessage = AIResearchUserMessage | AIResearchAssistantMessage;
+
+let msgIdCounter = 0;
+function nextMsgId(): string {
+  msgIdCounter += 1;
+  return `msg-${Date.now()}-${msgIdCounter}`;
 }
 
 function toSourceType(relativePath: string): ContextSourceRef['sourceType'] | null {
@@ -88,6 +125,7 @@ function createPreflightResult(params: {
   readonly contextPackPreview: ResearchContextPreview | null;
   readonly contextConfirmed: boolean;
   readonly privacyConsented: boolean;
+  readonly isNoContext: boolean;
 }): InvocationPreflightResult {
   if (!params.provider?.ready) {
     return {
@@ -101,28 +139,32 @@ function createPreflightResult(params: {
     };
   }
 
-  if (!params.contextPackPreview) {
-    return {
-      passed: false,
-      blockedReason: 'context_pack_not_ready',
-      blockedMessage: '请先构建上下文包。',
-      providerReady: true,
-      privacyConsented: params.privacyConsented,
-      contextConfirmed: params.contextConfirmed,
-      userExplicitRun: false,
-    };
-  }
+  // Phase 5-5-C-POST-SYNC-AI-RESEARCH-UX-FIX:
+  // No-context mode skips ContextPack-related gates.
+  if (!params.isNoContext) {
+    if (!params.contextPackPreview) {
+      return {
+        passed: false,
+        blockedReason: 'context_pack_not_ready',
+        blockedMessage: '请先构建上下文包。',
+        providerReady: true,
+        privacyConsented: params.privacyConsented,
+        contextConfirmed: params.contextConfirmed,
+        userExplicitRun: false,
+      };
+    }
 
-  if (!params.contextConfirmed) {
-    return {
-      passed: false,
-      blockedReason: 'context_not_confirmed',
-      blockedMessage: '请确认将发送的上下文摘要。',
-      providerReady: true,
-      privacyConsented: params.privacyConsented,
-      contextConfirmed: false,
-      userExplicitRun: false,
-    };
+    if (!params.contextConfirmed) {
+      return {
+        passed: false,
+        blockedReason: 'context_not_confirmed',
+        blockedMessage: '请确认将发送的上下文摘要。',
+        providerReady: true,
+        privacyConsented: params.privacyConsented,
+        contextConfirmed: false,
+        userExplicitRun: false,
+      };
+    }
   }
 
   if (!params.privacyConsented) {
@@ -141,7 +183,7 @@ function createPreflightResult(params: {
     passed: true,
     providerReady: true,
     privacyConsented: true,
-    contextConfirmed: true,
+    contextConfirmed: params.contextConfirmed || params.isNoContext,
     userExplicitRun: false,
   };
 }
@@ -158,6 +200,7 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
   const [currentTask, setCurrentTask] = useState<AIResearchTaskStatus | null>(null);
   const [currentArtifact, setCurrentArtifact] = useState<AIArtifactDraft | null>(null);
   const [streamingResponse, setStreamingResponse] = useState('');
+  const [chatMessages, setChatMessages] = useState<readonly AIResearchChatMessage[]>([]);
   const [savedArtifactPath, setSavedArtifactPath] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<readonly AIResearchWarning[]>([]);
   const [contextConfirmed, setContextConfirmed] = useState(false);
@@ -168,18 +211,53 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
   const [stateRevision, bumpStateRevision] = useReducer((value: number) => value + 1, 0);
   const unsubscribeTaskRef = useRef<(() => void) | null>(null);
   const runInFlightRef = useRef(false);
+  const currentAssistantIdRef = useRef<string | null>(null);
+  const pendingSendRef = useRef<{ skillPromptTemplate?: string } | null>(null);
+  const currentTaskRef = useRef<AIResearchTaskStatus | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void getProviderReadiness().then((readiness) => {
+    void (async () => {
+      // Phase 5-5-C-POST-SYNC-MODEL-BINDING-FIX:
+      // Read user's saved AI preferences (defaultProviderId + defaultModel) from Settings
+      // BEFORE falling back to provider readiness defaults.
+      // This ensures AI Research shows the same model the user selected in Settings.
+      let prefs: AIPreferences | null = null;
+      try {
+        prefs = await getAIPreferences();
+      } catch {
+        // Settings API unavailable — fall through to provider readiness
+      }
+
+      const readiness = await getProviderReadiness();
       if (cancelled) return;
       setProviderReadiness(readiness);
-      const readyProvider = readiness.find((provider) => provider.ready) ?? readiness[0] ?? null;
+
+      // Priority: user's saved preference → first ready provider → first available
+      if (prefs?.defaultProviderId && prefs?.defaultModel) {
+        const preferredProvider = readiness.find(
+          (p) => p.providerId === prefs!.defaultProviderId,
+        );
+        if (preferredProvider) {
+          const preferredModel = preferredProvider.models.find(
+            (m) => m.id === prefs!.defaultModel,
+          );
+          if (preferredModel) {
+            setSelectedProviderId(prefs!.defaultProviderId);
+            setSelectedModel(prefs!.defaultModel);
+            return;
+          }
+        }
+      }
+
+      // Fallback: first ready provider or first available
+      const readyProvider =
+        readiness.find((provider) => provider.ready) ?? readiness[0] ?? null;
       if (readyProvider) {
         setSelectedProviderId((current) => current ?? readyProvider.providerId);
         setSelectedModel((current) => current ?? readyProvider.models[0]?.id ?? null);
       }
-    });
+    })();
     return () => {
       cancelled = true;
     };
@@ -228,6 +306,7 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
     [cancelTaskIfActive, currentTask],
   );
 
+  const isNoContext = selectedSources.length === 0;
   const preflightResult = useMemo(
     () =>
       createPreflightResult({
@@ -235,8 +314,9 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
         contextPackPreview,
         contextConfirmed,
         privacyConsented,
+        isNoContext,
       }),
-    [contextConfirmed, contextPackPreview, privacyConsented, selectedProvider],
+    [contextConfirmed, contextPackPreview, privacyConsented, selectedProvider, isNoContext],
   );
 
   const taskState: AIResearchTaskState =
@@ -294,14 +374,19 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
 
   const createDraft = useCallback(
     async (skillPromptTemplate?: string) => {
-      if (!contextPackPreview || !selectedProvider || instruction.trim().length === 0) return;
+      // Phase 5-5-C-POST-SYNC-AI-RESEARCH-UX-FIX:
+      // Allow creating draft without context (no-context free conversation mode).
+      const isNoContext = selectedSources.length === 0;
+      const hasContext = !isNoContext && contextPackPreview !== null;
+      if (!selectedProvider || instruction.trim().length === 0) return;
+      if (!isNoContext && !hasContext) return;
       setLoading(true);
       setError(null);
       setStage('drafting');
       try {
         const task = await createTaskDraft({
           taskType,
-          contextPackId: contextPackPreview.packId,
+          contextPackId: hasContext ? contextPackPreview.packId : '',
           instruction: instruction.trim(),
           providerId: selectedProvider.providerId,
           model,
@@ -320,36 +405,103 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
         setLoading(false);
       }
     },
-    [contextPackPreview, instruction, model, selectedProvider, taskType],
+    [contextPackPreview, instruction, model, selectedProvider, selectedSources, taskType],
   );
 
-  const runTask = useCallback(async () => {
-    if (!currentTask || !preflightResult.passed || runInFlightRef.current) return;
-    if (currentTask.state === 'running' || currentTask.state === 'streaming') return;
+  const runTask = useCallback(async (overrideTask?: AIResearchTaskStatus | null) => {
+    // Use override task if provided (from executePendingSend), else current state
+    const task = overrideTask ?? currentTask;
+    if (!task || !preflightResult.passed || runInFlightRef.current) return;
+    if (task.state === 'running' || task.state === 'streaming') return;
+    const taskId = task.taskId;
     runInFlightRef.current = true;
     setLoading(true);
     setError(null);
     setStage('running');
     setStreamingResponse('');
     unsubscribeTaskRef.current?.();
-    unsubscribeTaskRef.current = subscribeTask(currentTask.taskId, {
+
+    // Phase 5-5-C-POST-SYNC-AI-RESEARCH-CHAT-THREAD-FIX:
+    // Append user message + assistant placeholder to conversation thread.
+    const userMsg: AIResearchUserMessage = {
+      id: nextMsgId(),
+      role: 'user',
+      content: instruction.trim(),
+      createdAt: new Date().toISOString(),
+      contextMode: isNoContext ? 'none' : 'selected-context',
+      contextPackId: contextPackPreview?.packId,
+    };
+    const assistantId = nextMsgId();
+    currentAssistantIdRef.current = assistantId;
+    const assistantMsg: AIResearchAssistantMessage = {
+      id: assistantId,
+      role: 'assistant',
+      taskId,
+      content: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'streaming',
+      providerId: selectedProvider?.providerId ?? task.providerId,
+      model,
+    };
+    setChatMessages((msgs) => [...msgs, userMsg, assistantMsg]);
+    setInstruction('');
+    bumpStateRevision();
+
+    unsubscribeTaskRef.current = subscribeTask(taskId, {
       onChunk: (chunk) => {
         setCurrentTask((task) =>
           task && task.taskId === chunk.taskId ? { ...task, state: 'streaming' } : task,
         );
         setStage('streaming');
         setStreamingResponse((current) => `${current}${chunk.content}`);
+        // Append chunk to the matching assistant message
+        setChatMessages((msgs) =>
+          msgs.map((msg) =>
+            msg.role === 'assistant' && msg.id === assistantId
+              ? {
+                  ...msg,
+                  content: msg.content + chunk.content,
+                  updatedAt: new Date().toISOString(),
+                }
+              : msg,
+          ),
+        );
       },
       onError: (chunk) => {
         setError(chunk.error.message);
         setStage('failed');
+        setChatMessages((msgs) =>
+          msgs.map((msg) =>
+            msg.role === 'assistant' && msg.id === assistantId
+              ? {
+                  ...msg,
+                  status: 'failed',
+                  error: chunk.error.message,
+                  updatedAt: new Date().toISOString(),
+                }
+              : msg,
+          ),
+        );
+        currentAssistantIdRef.current = null;
       },
     });
     try {
-      const runningTask = await runConfirmedTask({ taskId: currentTask.taskId });
+      const runningTask = await runConfirmedTask({ taskId });
       setCurrentTask(runningTask);
       if (runningTask.state === 'cancelled') {
         setStage('cancelled');
+        setChatMessages((msgs) =>
+          msgs.map((msg) =>
+            msg.role === 'assistant' && msg.id === assistantId
+              ? { ...msg, status: 'cancelled', updatedAt: new Date().toISOString() }
+              : msg,
+          ),
+        );
+        currentAssistantIdRef.current = null;
+        // Phase 5-5-C-POST-SYNC-AI-RESEARCH-SEND-FLOW-FIX:
+        // Reset for next round of conversation.
+        setCurrentTask(null);
         return;
       }
       const result = await getTaskResult(runningTask.taskId);
@@ -358,27 +510,78 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
       setWarnings([...result.warnings, ...(result.artifact?.warnings ?? [])]);
       setStage(result.state === 'failed' ? 'failed' : 'completed');
       setCurrentTask({ ...runningTask, state: result.state });
+      // Mark assistant message as completed with evidence refs
+      setChatMessages((msgs) =>
+        msgs.map((msg) =>
+          msg.role === 'assistant' && msg.id === assistantId
+            ? {
+                ...msg,
+                status: result.state === 'failed' ? ('failed' as const) : ('completed' as const),
+                artifactDraftId: result.artifact?.artifactId,
+                evidenceRefs: result.artifact?.evidenceRefs ?? result.artifact?.evidence,
+                updatedAt: new Date().toISOString(),
+                error: result.state === 'failed' ? '任务执行失败。' : undefined,
+              }
+            : msg,
+        ),
+      );
+      currentAssistantIdRef.current = null;
+      // Reset for next round
+      setCurrentTask(null);
       bumpStateRevision();
     } catch (err) {
       setError(err instanceof Error ? err.message : '运行草稿任务失败。');
       setStage('failed');
+      setChatMessages((msgs) =>
+        msgs.map((msg) =>
+          msg.role === 'assistant' && msg.id === assistantId
+            ? {
+                ...msg,
+                status: 'failed',
+                error: err instanceof Error ? err.message : '运行草稿任务失败。',
+                updatedAt: new Date().toISOString(),
+              }
+            : msg,
+        ),
+      );
+      currentAssistantIdRef.current = null;
+      // Reset for next round
+      setCurrentTask(null);
     } finally {
       setLoading(false);
       runInFlightRef.current = false;
       unsubscribeTaskRef.current?.();
       unsubscribeTaskRef.current = null;
     }
-  }, [currentTask, preflightResult.passed]);
+  }, [currentTask, preflightResult.passed, instruction, isNoContext, contextPackPreview, selectedProvider, model]);
+
+  // Phase 5-5-C-POST-SYNC-AI-RESEARCH-SEND-DISABLED-FIX:
+  // Keep a ref to the latest runTask so setTimeout callbacks don't capture stale closures.
+  const runTaskRef = useRef(runTask);
+  runTaskRef.current = runTask;
 
   const cancelCurrentTask = useCallback(async () => {
     if (!currentTask) return;
     setLoading(true);
+    const assistantId = currentAssistantIdRef.current;
     try {
       const cancelledTask = await cancelTask({ taskId: currentTask.taskId });
       setCurrentTask(cancelledTask);
       setStage('cancelled');
+      if (assistantId) {
+        setChatMessages((msgs) =>
+          msgs.map((msg) =>
+            msg.role === 'assistant' && msg.id === assistantId
+              ? { ...msg, status: 'cancelled', updatedAt: new Date().toISOString() }
+              : msg,
+          ),
+        );
+      }
       unsubscribeTaskRef.current?.();
       unsubscribeTaskRef.current = null;
+      currentAssistantIdRef.current = null;
+      // Reset for next round
+      setCurrentTask(null);
       bumpStateRevision();
     } catch (err) {
       setError(err instanceof Error ? err.message : '取消任务失败。');
@@ -429,6 +632,104 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
     }
   }, [currentArtifact]);
 
+  // Phase 5-5-C-POST-SYNC-AI-RESEARCH-SEND-FLOW-FIX:
+  // Single "send" action. Returns a defer reason if a gate blocks (caller shows modal),
+  // or null if the send proceeded. When a gate is hit, pendingSendRef is set so
+  // continuePendingSend() can resume after the modal confirms.
+  const sendMessage = useCallback(
+    async (skillPromptTemplate?: string): Promise<'context' | 'privacy' | null> => {
+      if (!selectedProvider) {
+        setError('请先在设置中配置模型供应商并选择模型。');
+        return null;
+      }
+      if (instruction.trim().length === 0) {
+        return null;
+      }
+      if (loading || stage === 'running' || stage === 'streaming') return null;
+
+      // If context mode but no ContextPack, build it first
+      const hasSources = selectedSources.length > 0;
+      if (hasSources && !contextPackPreview) {
+        const ok = await buildPack();
+        if (!ok) return null;
+      }
+
+      // If context mode but not confirmed, defer to confirmation modal
+      if (hasSources && !contextConfirmed) {
+        pendingSendRef.current = { skillPromptTemplate };
+        return 'context';
+      }
+
+      // If privacy not consented, defer to privacy modal
+      if (!privacyConsented) {
+        pendingSendRef.current = { skillPromptTemplate };
+        return 'privacy';
+      }
+
+      // All gates passed: create draft + auto-run
+      await executePendingSend(skillPromptTemplate);
+      return null;
+    },
+    [selectedProvider, instruction, loading, stage, selectedSources, contextPackPreview, contextConfirmed, privacyConsented, buildPack],
+  );
+
+  // Internal: execute the pending send after all gates are passed.
+  const executePendingSend = useCallback(
+    async (skillPromptTemplate?: string) => {
+      if (instruction.trim().length === 0 || !selectedProvider) return;
+
+      // Create task draft internally (not exposed to user as separate step)
+      const isNoCtx = selectedSources.length === 0;
+      const hasCtx = !isNoCtx && contextPackPreview !== null;
+      const packId = hasCtx ? contextPackPreview!.packId : '';
+
+      setLoading(true);
+      setError(null);
+      setStage('drafting');
+      try {
+        const task = await createTaskDraft({
+          taskType,
+          contextPackId: packId,
+          instruction: instruction.trim(),
+          providerId: selectedProvider.providerId,
+          model,
+          skillPromptTemplate,
+        });
+        setCurrentTask(task);
+        setCurrentArtifact(null);
+        setSavedArtifactPath(null);
+        setStreamingResponse('');
+        setStage('draft_created');
+        bumpStateRevision();
+        pendingSendRef.current = null;
+        // Chain to auto-run: pass the fresh task directly to avoid stale closure.
+        // runTask will manage its own loading state.
+        setTimeout(() => {
+          void runTaskRef.current(task);
+        }, 0);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : '创建任务失败。');
+        setStage('failed');
+        pendingSendRef.current = null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [taskType, instruction, selectedProvider, model, contextPackPreview, selectedSources],
+  );
+
+  // Phase 5-5-C-POST-SYNC-AI-RESEARCH-SEND-FLOW-FIX:
+  // After a task is completed/cancelled/failed, reset currentTask to enable next send.
+  // This is handled in the runTask callback itself.
+
+  // Continue pending send after privacy consent is granted or context confirmed.
+  const continuePendingSend = useCallback(() => {
+    const pending = pendingSendRef.current;
+    pendingSendRef.current = null;
+    if (!pending) return;
+    void executePendingSend(pending.skillPromptTemplate);
+  }, [executePendingSend]);
+
   useEffect(
     () => () => {
       unsubscribeTaskRef.current?.();
@@ -459,6 +760,7 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
     error,
     stateRevision,
     model,
+    chatMessages,
     setTaskType,
     setInstruction,
     changeProvider,
@@ -468,6 +770,8 @@ export function useAIResearchWorkbench({ vaultId, fileTree }: UseAIResearchWorkb
     toggleSource,
     buildPack,
     createDraft,
+    sendMessage,
+    continuePendingSend,
     runTask,
     cancelCurrentTask,
     saveCurrentArtifact,

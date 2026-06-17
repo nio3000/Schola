@@ -68,13 +68,13 @@ describe('AI Research — No Renderer Context Send', () => {
     }
   });
 
-  it('52-TB-SEC-113: renderer API has exactly 10 fixed-function methods', () => {
+  it('52-TB-SEC-113: renderer API has 12 fixed-function methods', () => {
     const api = readSource('src/lib/platform/ai-research-api.ts');
     assert.ok(api, 'ai-research-api.ts must exist');
 
     // Count exported async functions
     const funcs = api.match(/export async function \w+/g) || [];
-    assert.equal(funcs.length, 10, 'Renderer API must have exactly 10 methods');
+    assert.equal(funcs.length, 12, 'Renderer API must have exactly 12 methods');
 
     // No generic send/upload/transmit
     for (const func of funcs) {

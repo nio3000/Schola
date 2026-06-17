@@ -41,9 +41,14 @@ const MAX_HEADING_LENGTH = 180;
 
 /** Phase 5-5-C-IMP-1: ContextPack builder limits. */
 export const MAX_FILES = 20;
+
+/** Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: PDF text extraction limits. */
+const MAX_PDF_CHARS = 40_000;
+const MAX_PDF_PAGES = 50;
+
 const FORMAT_READ_LIMITS: Record<ContextSourceType, number> = {
   markdown: 32_768,  // 32KB
-  pdf:      0,       // IMP-2: real text extraction via pdfjs-dist
+  pdf:      MAX_PDF_CHARS,
   html:     32_768,  // 32KB
   txt:      32_768,  // 32KB
   csv:      16_384,  // 16KB
@@ -81,14 +86,30 @@ interface SelectedFileReadResult {
   readonly sourceRef: ContextSourceRef;
   readonly content: string | Buffer;
   readonly size: number;
+  /** Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: PDF extraction metadata. */
+  readonly pdfExtraction?: PdfExtractionMeta;
 }
+
+interface PdfExtractionMeta {
+  readonly status: ContextSourceExtractionStatus;
+  readonly pageCount?: number;
+  readonly charCount?: number;
+  readonly note?: string;
+}
+
+/** Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: extraction status for context sources. */
+export type ContextSourceExtractionStatus =
+  | 'text-extracted'
+  | 'metadata-only'
+  | 'extract-failed'
+  | 'unsupported';
 
 export function getProviderReadiness(providerId?: string): ProviderReadiness[] {
   const presets = providerId ? [requireProviderPreset(providerId)] : PROVIDER_PRESETS;
   return presets.map(buildProviderReadiness);
 }
 
-export function buildContextPack(input: BuildContextPackInput): ResearchContextPreview {
+export async function buildContextPack(input: BuildContextPackInput): Promise<ResearchContextPreview> {
   assertElectronFileAccessAvailable();
   const vaultId = assertVaultId(input.vaultId);
   const providerId = assertString(input.providerId, 'providerId');
@@ -111,7 +132,7 @@ export function buildContextPack(input: BuildContextPackInput): ResearchContextP
   const contentStore = new Map<string, string>();
 
   for (const selectedSource of input.selectedSources) {
-    const readResult = readSelectedSource(rootPath, selectedSource);
+    const readResult = await readSelectedSource(rootPath, selectedSource);
     const rawTokens = estimateSourceTokens(
       readResult.sourceRef.sourceType,
       readResult.content,
@@ -122,18 +143,29 @@ export function buildContextPack(input: BuildContextPackInput): ResearchContextP
     const truncated = rawTokens > tokenCount;
     const metadata = buildSourceMetadata(readResult.sourceRef, readResult.content);
 
-    entries.push({
+    // Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: Include PDF extraction status
+    const entry: ContextPackFileEntry = {
       relativePath: readResult.sourceRef.relativePath,
       displayName: readResult.sourceRef.displayName,
       sourceType: readResult.sourceRef.sourceType,
       tokenCount,
       truncated,
       ...metadata,
-    });
+      ...(readResult.pdfExtraction
+        ? {
+            extractionStatus: readResult.pdfExtraction.status,
+            extractedCharCount: readResult.pdfExtraction.charCount,
+            extractedPageCount: readResult.pdfExtraction.pageCount,
+            extractionNote: readResult.pdfExtraction.note,
+          }
+        : {}),
+    };
+
+    entries.push(entry);
     selectedSourceRefs.push(readResult.sourceRef);
 
     // Phase 5-5-C-IMP-2: Store content for provider generation.
-    // Only text content (string) is stored; Buffer content is stored as empty string.
+    // All content is stored as string; PDF extracted text included.
     const contentStr = typeof readResult.content === 'string' ? readResult.content : '';
     contentStore.set(readResult.sourceRef.relativePath, contentStr);
 
@@ -176,9 +208,11 @@ export function previewContextPack(contextPackId: string): ResearchContextPrevie
 }
 
 /**
- * Phase 5-5-C-IMP-2: Get the stored file contents for a ContextPack.
+ * Phase 5-5-C-IMP-2 + Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX:
+ * Get the stored file contents for a ContextPack.
  * Returns a Map of relativePath → text content.
- * Only text-based files have content; binary/pdf files have empty strings.
+ * PDF files with extracted text have their text content here;
+ * PDF files without extraction have empty strings.
  */
 export function getContextPackContent(
   contextPackId: string,
@@ -202,24 +236,60 @@ export function buildEvidenceRefsForContextPack(
   const packId = assertString(contextPackId, 'contextPackId');
   const refs = contextPackSourceRefs.get(packId) ?? [];
   const contentMap = contextPackContents.get(packId) ?? new Map<string, string>();
+  const packEntryMap = buildPackEntryMap(packId);
   const evidence: EvidenceRef[] = [];
 
   refs.forEach((source, index) => {
     const content = contentMap.get(source.relativePath) ?? '';
-    const textBacked = content.trim().length > 0;
+    const packEntry = packEntryMap.get(source.relativePath);
+    const extractionStatus = packEntry?.extractionStatus;
+    const isPdf = source.sourceType === 'pdf';
+
+    // Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX:
+    // Determine text-backed status based on extraction result.
+    let textBacked: boolean;
+    let label: string;
+    let note: string;
+    let confidence: 'high' | 'medium' | 'low';
+
+    if (isPdf && extractionStatus === 'text-extracted') {
+      textBacked = true;
+      label = `上下文来源（PDF 已提取正文）`;
+      confidence = 'medium';
+      note = packEntry?.extractionNote ?? 'PDF 文本已提取，需人工核验原文。';
+    } else if (isPdf && extractionStatus === 'extract-failed') {
+      textBacked = false;
+      label = `上下文来源（PDF 提取失败）`;
+      confidence = 'low';
+      note = packEntry?.extractionNote ?? 'PDF 文本提取失败，请尝试粘贴全文或使用可复制文本的 PDF。';
+    } else if (isPdf && extractionStatus === 'metadata-only') {
+      textBacked = false;
+      label = `上下文来源（PDF metadata-only）`;
+      confidence = 'medium';
+      note = packEntry?.extractionNote ?? '该 PDF 未检测到可提取文本（可能为扫描版）。';
+    } else if (content.trim().length > 0) {
+      textBacked = true;
+      label = '上下文来源';
+      confidence = 'high';
+      note = '基于用户确认发送的 ContextPack 正文生成，需人工复核。';
+    } else {
+      textBacked = false;
+      label = '上下文来源（metadata-only）';
+      confidence = 'medium';
+      note = '该资源本阶段仅作为 metadata-only 来源，不生成正文 quotePreview。';
+    }
+
     evidence.push({
       id: `evidence-${packId}-${index + 1}`,
       kind: 'source-backed',
-      label: textBacked ? '上下文来源' : '上下文来源（metadata-only）',
+      label,
       sourceId: `${packId}:${source.relativePath}`,
       relativePath: source.relativePath,
       displayName: source.displayName,
       sourceType: source.sourceType,
       quotePreview: textBacked ? buildQuotePreview(content) : undefined,
-      confidence: textBacked ? 'high' : 'medium',
-      note: textBacked
-        ? '基于用户确认发送的 ContextPack 正文生成，需人工复核。'
-        : '该资源本阶段仅作为 metadata-only 来源，不生成正文 quotePreview。',
+      confidence,
+      note,
       sourceRef: {
         relativePath: source.relativePath,
         displayName: source.displayName,
@@ -239,6 +309,21 @@ export function buildEvidenceRefsForContextPack(
   }
 
   return evidence;
+}
+
+/**
+ * Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX:
+ * Build a lookup map from relativePath → ContextPackFileEntry
+ * for accessing extraction metadata in evidence building.
+ */
+function buildPackEntryMap(packId: string): Map<string, ContextPackFileEntry> {
+  const pack = contextPacks.get(packId);
+  const map = new Map<string, ContextPackFileEntry>();
+  if (!pack) return map;
+  for (const entry of pack.files) {
+    map.set(entry.relativePath, entry);
+  }
+  return map;
 }
 
 export function estimateTokens(
@@ -306,12 +391,21 @@ function buildModelList(
   const customModels = config?.customModels
     ?.map((model) => model.trim())
     .filter((model) => model.length > 0);
-  const modelIds =
-    customModels && customModels.length > 0
-      ? customModels
-      : preset.defaultModel.trim().length > 0
-        ? [preset.defaultModel]
-        : [];
+
+  // Phase 5-5-C-POST-SYNC-MODEL-BINDING-FIX:
+  // Prefer user's selected model from ProviderConfig, else custom models, else preset default.
+  // This ensures the model shown in AI Research matches what the user selected in Settings.
+  const selectedModel = config?.selectedModel?.trim();
+  let modelIds: string[];
+  if (selectedModel && selectedModel.length > 0) {
+    modelIds = [selectedModel];
+  } else if (customModels && customModels.length > 0) {
+    modelIds = customModels;
+  } else if (preset.defaultModel.trim().length > 0) {
+    modelIds = [preset.defaultModel];
+  } else {
+    modelIds = [];
+  }
 
   return Array.from(new Set(modelIds)).map((modelId) => ({
     id: modelId,
@@ -358,7 +452,7 @@ function assertElectronFileAccessAvailable(): void {
   }
 }
 
-function readSelectedSource(rootPath: string, source: ContextSourceRef): SelectedFileReadResult {
+async function readSelectedSource(rootPath: string, source: ContextSourceRef): Promise<SelectedFileReadResult> {
   const relativePath = normalizeSourceRelativePath(source.relativePath);
   const sourceType = normalizeSourceType(source.sourceType);
   const displayName = sanitizeDisplayName(source.displayName, relativePath);
@@ -375,6 +469,18 @@ function readSelectedSource(rootPath: string, source: ContextSourceRef): Selecte
     sourceType,
     fileSize: stat.size,
   };
+
+  // Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: PDF text extraction
+  if (sourceType === 'pdf') {
+    const { text, meta } = await extractPdfText(absolutePath, relativePath);
+    const content = text.length > 0 ? text : '';
+    return {
+      sourceRef,
+      content,
+      size: Buffer.byteLength(content, 'utf-8'),
+      pdfExtraction: meta,
+    };
+  }
 
   const rawContent = readVaultFileContent(absolutePath, relativePath, sourceType);
   const readLimit = FORMAT_READ_LIMITS[sourceType];
@@ -457,6 +563,150 @@ function getVaultFileStat(absolutePath: string, relativePath: string): fs.Stats 
   }
 }
 
+/**
+ * Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: Extract text from PDF files.
+ *
+ * Uses pdfjs-dist (already a project dependency) for text extraction.
+ * Extraction is performed in the main process only.
+ * PDF binary content is never sent to the renderer or provider.
+ *
+ * Safety limits:
+ *   - MAX_PDF_PAGES pages
+ *   - MAX_PDF_CHARS characters
+ *   - No OCR / scanned image processing
+ */
+async function extractPdfText(
+  absolutePath: string,
+  relativePath: string,
+): Promise<{ text: string; meta: PdfExtractionMeta }> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let pdfjsLib: Record<string, any>;
+    try {
+      pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    } catch {
+      return {
+        text: '',
+        meta: {
+          status: 'extract-failed',
+          note: 'PDF 提取引擎初始化失败。',
+        },
+      };
+    }
+
+    // Configure worker
+    try {
+      const workerCandidates = [
+        path.join(process.resourcesPath, 'pdfjs-worker', 'pdf.worker.min.mjs'),
+        path.resolve(__dirname, '..', '..', '..', 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.min.mjs'),
+        path.resolve(__dirname, '..', '..', '..', '..', 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.min.mjs'),
+      ];
+      for (const candidate of workerCandidates) {
+        if (fs.existsSync(candidate)) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = 'file://' + candidate.replace(/\\/g, '/');
+          break;
+        }
+      }
+    } catch {
+      // Worker path resolution failed — pdfjs-dist will attempt default
+    }
+
+    // Read PDF buffer (main process only, vault-internal path)
+    let pdfData: Uint8Array;
+    try {
+      const buf = fs.readFileSync(absolutePath);
+      pdfData = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    } catch {
+      return {
+        text: '',
+        meta: {
+          status: 'extract-failed',
+          note: '无法读取 PDF 文件。',
+        },
+      };
+    }
+
+    // Parse and extract text
+    const doc = await pdfjsLib.getDocument({
+      data: pdfData,
+      disableFontFace: true,
+      useSystemFonts: false,
+    }).promise;
+
+    const totalPages = doc.numPages;
+    const pagesToExtract = Math.min(totalPages, MAX_PDF_PAGES);
+    const pageTexts: string[] = [];
+    let totalChars = 0;
+    let emptyPageCount = 0;
+
+    for (let i = 1; i <= pagesToExtract; i++) {
+      const page = await doc.getPage(i);
+      const textContent = await page.getTextContent();
+
+      interface PdfJsTextItem {
+        str: string;
+      }
+      const pageText = (textContent.items as PdfJsTextItem[])
+        .map((item) => item.str ?? '')
+        .join(' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+
+      if (pageText.length === 0) {
+        emptyPageCount += 1;
+        continue;
+      }
+
+      const remaining = MAX_PDF_CHARS - totalChars;
+      if (remaining <= 0) break;
+
+      const truncatedText = pageText.length > remaining ? pageText.slice(0, remaining) + '…' : pageText;
+      pageTexts.push(`[第 ${i} 页]\n${truncatedText}`);
+      totalChars += truncatedText.length;
+    }
+
+    const extractedText = pageTexts.join('\n\n');
+
+    // Scanned PDF detection: no text on any page
+    if (extractedText.length === 0 || emptyPageCount === pagesToExtract) {
+      return {
+        text: '',
+        meta: {
+          status: 'metadata-only',
+          pageCount: totalPages,
+          charCount: 0,
+          note: '未检测到可提取文本（可能为扫描版或纯图片 PDF）。已按 metadata-only 处理。',
+        },
+      };
+    }
+
+    const wasTruncated = totalChars >= MAX_PDF_CHARS || pagesToExtract < totalPages;
+    return {
+      text: extractedText,
+      meta: {
+        status: 'text-extracted',
+        pageCount: totalPages,
+        charCount: extractedText.length,
+        note: wasTruncated
+          ? `PDF 文本已提取前 ${pagesToExtract} 页（共 ${totalPages} 页），内容可能因长度限制被截断。`
+          : `PDF 文本已提取 ${pagesToExtract} 页（共 ${totalPages} 页）。`,
+      },
+    };
+  } catch {
+    return {
+      text: '',
+      meta: {
+        status: 'extract-failed',
+        note: 'PDF 文本提取过程发生错误。',
+      },
+    };
+  }
+}
+
+/**
+ * Synchronous file read for non-PDF source types.
+ * PDF extraction is handled asynchronously via extractPdfText().
+ */
 function readVaultFileContent(
   absolutePath: string,
   relativePath: string,
@@ -466,11 +716,16 @@ function readVaultFileContent(
     const readLimit = FORMAT_READ_LIMITS[sourceType];
     switch (sourceType) {
       case 'pdf':
+        // Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: PDF text extraction
+        // is now handled asynchronously via extractPdfText() in readSelectedSource.
+        // This case returns '' to signal "not yet extracted" — the async path
+        // replaces it with real text before content is stored.
+        return '';
       case 'docx':
       case 'xlsx':
       case 'doc':
       case 'xls':
-        return ''; // Phase 5-5-C-IMP-1: metadata only. Real text extraction → IMP-2 (pdfjs-dist / word-extractor / xlsx)
+        return ''; // Real text extraction → future IMP
       case 'html': {
         const rawHtml = readLimitedUtf8(absolutePath, readLimit);
         return stripHtmlTags(rawHtml);
@@ -518,9 +773,17 @@ function buildSourceMetadata(
   sourceRef: ContextSourceRef,
   content: string | Buffer,
 ): Partial<Pick<ContextPackFileEntry, 'pdfPageRange' | 'markdownHeadings' | 'sheetRange'>> {
-  if (sourceRef.sourceType === 'pdf' && Buffer.isBuffer(content)) {
-    const pageCount = extractPdfPageCount(content);
-    return pageCount ? { pdfPageRange: `1-${pageCount}` } : {};
+  // Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: PDF page count is now
+  // extracted via extractPdfText() in readSelectedSource, not from raw Buffer.
+  // Page count from extraction is populated in the entry via pdfExtraction metadata.
+  if (sourceRef.sourceType === 'pdf') {
+    // Legacy Buffer-based page count extraction; no longer the primary method.
+    // If content is still a Buffer (test environment), extract page count from it.
+    if (Buffer.isBuffer(content)) {
+      const pageCount = extractPdfPageCount(content);
+      return pageCount ? { pdfPageRange: `1-${pageCount}` } : {};
+    }
+    return {};
   }
 
   if (typeof content === 'string' && shouldExtractMarkdownHeadings(sourceRef)) {
@@ -690,6 +953,16 @@ function buildPreviewWarnings(pack: ResearchContextPack): readonly string[] {
   for (const file of pack.files) {
     if (file.truncated) {
       warnings.push(`Truncated "${file.displayName}" to fit the context token budget.`);
+    }
+    // Phase 5-5-C-POST-SYNC-PDF-CONTEXT-INGEST-FIX: PDF extraction status warnings
+    if (file.sourceType === 'pdf' && file.extractionStatus === 'extract-failed') {
+      warnings.push(`"${file.displayName}" 的 PDF 文本提取失败，已按 metadata-only 处理。`);
+    }
+    if (file.sourceType === 'pdf' && file.extractionStatus === 'metadata-only') {
+      warnings.push(`"${file.displayName}" 未检测到可提取文本，已按 metadata-only 处理。`);
+    }
+    if (file.extractionNote && file.extractionStatus === 'text-extracted') {
+      warnings.push(`"${file.displayName}"：${file.extractionNote}`);
     }
   }
 

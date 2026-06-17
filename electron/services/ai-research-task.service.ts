@@ -501,7 +501,11 @@ function generateTaskId(): string {
 
 function assertCreateTaskDraftInput(input: CreateTaskDraftInput): void {
   assertString(input.taskType, 'taskType');
-  assertString(input.contextPackId, 'contextPackId');
+  // Phase 5-5-C-POST-SYNC-AI-RESEARCH-UX-FIX:
+  // Allow empty contextPackId for no-context free conversation mode.
+  if (typeof input.contextPackId !== 'string') {
+    throw new Error('INVALID_INPUT: contextPackId must be a string.');
+  }
   assertString(input.instruction, 'instruction');
   assertString(input.providerId, 'providerId');
   assertString(input.model, 'model');

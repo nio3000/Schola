@@ -293,8 +293,11 @@ describe('AI Research — AI 输出不得自动覆盖用户原文', () => {
     const apiBody = apiMatch[0];
     // discardArtifact 存在
     assert.ok(/discardArtifact/.test(apiBody), 'discardArtifact 应存在');
-    // 但 saveArtifact, writeArtifact 等不得存在
-    assert.ok(!/saveArtifact/i.test(apiBody), '不得存在 saveArtifact 方法');
+    // saveArtifactDraft 是合法的 fixed-function save 操作
+    assert.ok(/saveArtifactDraft/.test(apiBody), 'saveArtifactDraft 应存在（合法 fixed-function）');
+    // 但泛型 saveArtifact（不含 Draft 后缀）不得存在
+    // 使用 /saveArtifact[^(]*[:(]/ 匹配接口方法声明 "saveArtifact:" 或 "saveArtifact("
+    assert.ok(!/saveArtifact\s*[:(]/i.test(apiBody), '不得存在泛型 saveArtifact 方法');
     assert.ok(!/writeArtifact/i.test(apiBody), '不得存在 writeArtifact 方法');
     assert.ok(!/commitArtifact/i.test(apiBody), '不得存在 commitArtifact 方法');
   });

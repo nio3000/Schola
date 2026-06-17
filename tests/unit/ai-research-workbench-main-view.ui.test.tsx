@@ -95,11 +95,13 @@ describe('AI Research — Workbench Main View', () => {
     assert.ok(html.includes('ai-research-artifact-column'), 'Must render artifact column');
   });
 
-  it('52-TB-UI-003: center column contains model response first', async () => {
+  it('52-TB-UI-003: center column contains chat thread with assistant-ready message', async () => {
     const html = await renderAsync(React.createElement(AIResearchMainView, makeProps()));
 
-    assert.ok(html.includes('模型回复'), 'Center column must contain model response area');
-    assert.ok(html.includes('尚未生成回复'), 'Response area must show empty state');
+    // Phase 5-5-C-POST-SYNC-AI-RESEARCH-CHAT-THREAD-FIX:
+    // Center column now uses conversation thread instead of static response panel.
+    assert.ok(html.includes('ai-research-chat-thread'), 'Center column must contain chat thread');
+    assert.ok(html.includes('AI 研究工作台'), 'Chat thread must show workbench welcome');
   });
 
   it('52-TB-UI-004: left column contains context and references only', async () => {
@@ -174,18 +176,19 @@ describe('AI Research — Workbench Main View', () => {
     );
   });
 
-  it('AI-C-STREAM-014: cancelled tasks return to draft creation instead of rerunning old task', () => {
+  it('AI-C-STREAM-014: cancelled tasks allow new send via single send button', () => {
     const source = readSource('src/features/ai-research/AIResearchMainView.tsx');
-    const cancelledIndex = source.indexOf("workbench.stage === 'cancelled'");
-    const createButtonIndex = source.indexOf('ai-research-create-draft-btn');
 
+    // Phase 5-5-C-POST-SYNC-AI-RESEARCH-SEND-FLOW-FIX:
+    // The two-step draft+run flow is replaced by a single send/stop button.
+    // Cancelled tasks allow immediate next send via the same send button.
     assert.ok(
-      cancelledIndex > 0,
-      'Main view must special-case cancelled tasks in the create-draft branch',
+      source.includes('ai-research-send-btn'),
+      'Main view must have a send button for new rounds after cancel',
     );
     assert.ok(
-      cancelledIndex < createButtonIndex,
-      'Cancelled tasks must return to draft creation before the run button branch',
+      source.includes('ai-research-stop-btn'),
+      'Main view must have a stop button during running/streaming',
     );
   });
 
@@ -210,18 +213,23 @@ describe('AI Research — Workbench Main View', () => {
     );
   });
 
-  it('AI-C-PRIVACY-002: run click opens privacy consent before runTask', () => {
-    const source = readSource('src/features/ai-research/AIResearchMainView.tsx');
-    const gateIndex = source.indexOf('if (!workbench.privacyConsented)');
-    const modalIndex = source.indexOf('setShowPrivacyConsent(true)');
-    const runIndex = source.indexOf('void workbench.runTask();');
+  it('AI-C-PRIVACY-002: send flow checks privacy consent before execution', () => {
+    const hookSource = readSource('src/features/ai-research/hooks/useAIResearchWorkbench.ts');
+    const viewSource = readSource('src/features/ai-research/AIResearchMainView.tsx');
 
-    assert.ok(gateIndex > 0, 'Run button must check privacy consent');
-    assert.ok(modalIndex > gateIndex, 'Privacy gate must open the modal');
-    assert.ok(runIndex > modalIndex, 'Provider run must stay behind the privacy gate');
+    // Phase 5-5-C-POST-SYNC-AI-RESEARCH-SEND-FLOW-FIX:
+    // Privacy consent check is now in sendMessage hook, not in UI button handler.
     assert.ok(
-      source.includes('return;'),
-      'Run click must not fall through to provider call before confirmation',
+      hookSource.includes('!privacyConsented'),
+      'sendMessage must defer to privacy consent when not consented',
+    );
+    assert.ok(
+      viewSource.includes('continuePendingSend'),
+      'Main view must auto-continue pending send after privacy consent',
+    );
+    assert.ok(
+      viewSource.includes('PrivacyConsentModal'),
+      'Main view must still wire the privacy consent modal',
     );
   });
 

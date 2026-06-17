@@ -181,9 +181,9 @@ describe('AI Research — Context Send Guard', () => {
     const api = readSource('src/lib/platform/ai-research-api.ts');
     assert.ok(api, 'ai-research-api.ts must exist');
 
-    // Only 10 fixed-function methods
+    // Only 12 fixed-function methods
     const methods = api.match(/\bexport async function \w+/g) || [];
-    assert.equal(methods.length, 10, 'ai-research-api.ts must have exactly 10 methods');
+    assert.equal(methods.length, 12, 'ai-research-api.ts must have exactly 12 methods');
 
     // No generic send
     assert.ok(!/sendContext/i.test(api), 'API must not have sendContext');
